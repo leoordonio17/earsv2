@@ -30,12 +30,19 @@ return [
             'targets' => [
                 [
                     'class' => \yii\log\FileTarget::class,
-                    'levels' => ['error', 'warning'],
+                    'levels' => ['error', 'warning', 'info'],
+                    'logVars' => [],
                 ],
             ],
         ],
         'errorHandler' => [
             'errorAction' => 'site/error',
+        ],
+        
+        'pidsApi' => [
+            'class' => 'backend\components\PidsApiComponent',
+            'apiBaseUrl' => 'https://dts.pids.gov.ph/api',
+            'apiToken' => 'db7af4b8bf265411f6e9ee3b6b78eabaa2ed3e9cb6d1b1239dbf2e86984d127d',
         ],
         
         'urlManager' => [

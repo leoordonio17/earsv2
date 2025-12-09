@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test Grant Access</title>
+    <style>
+      body {
+        font-family: Arial;
+        padding: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .section {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      pre {
+        background: #f5f5f5;
+        padding: 10px;
+        overflow: auto;
+      }
+      button {
+        padding: 10px 20px;
+        background: #967259;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #3e2f1f;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>EARS Grant Access Debugger</h1>
+
+    <div class="section">
+      <h2>Step 1: Check Personnel Data</h2>
+      <button onclick="testPersonnel()">Fetch Personnel from API</button>
+      <div id="personnelResult"></div>
+    </div>
+
+    <div class="section">
+      <h2>Step 2: Test Grant Access</h2>
+      <p>Enter PIDS ID to test:</p>
+      <input
+        type="number"
+        id="testPidsId"
+        placeholder="e.g., 2"
+        style="padding: 8px; width: 200px"
+      />
+      <button onclick="testGrantAccess()">Test Grant Access</button>
+      <div id="grantResult"></div>
+    </div>
+
+    <div class="section">
+      <h2>Step 3: Check Database</h2>
+      <button onclick="checkDatabase()">Check ears_access Table</button>
+      <div id="dbResult"></div>
+    </div>
+
+    <script>
+      async function testPersonnel() {
+        const resultDiv = document.getElementById("personnelResult");
+        resultDiv.innerHTML = "<p>Loading...</p>";
+
+        try {
+          const response = await fetch(
+            "/earsv2/backend/web/index.php?r=user-management/get-personnel"
+          );
+          const data = await response.json();
+
+          if (data.success) {
+            resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✓ Success!</strong> Fetched ${
+                              data.count
+                            } personnel records
+                        </div>
+                        <h3>Sample Personnel (ID: ${data.data[0].id}):</h3>
+                        <pre>${JSON.stringify(data.data[0], null, 2)}</pre>
+                        <p><small>Use this ID in Step 2 to test grant access</small></p>
+                    `;
+          } else {
+            resultDiv.innerHTML = `<div class="error"><strong>✗ Error:</strong> ${data.message}</div>`;
+          }
+        } catch (error) {
+          resultDiv.innerHTML = `<div class="error"><strong>✗ Error:</strong> ${error.message}</div>`;
+        }
+      }
+
+      async function testGrantAccess() {
+        const pidsId = document.getElementById("testPidsId").value;
+        const resultDiv = document.getElementById("grantResult");
+
+        if (!pidsId) {
+          resultDiv.innerHTML =
+            '<div class="error">Please enter a PIDS ID</div>';
+          return;
+        }
+
+        resultDiv.innerHTML = "<p>Processing...</p>";
+
+        try {
+          const response = await fetch(
+            "/earsv2/backend/web/index.php?r=user-management/grant-access",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: `pids_id=${pidsId}&_csrf-backend=${getCsrfToken()}`,
+            }
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✓ Success!</strong> ${data.message}
+                        </div>
+                        <p>Now check Step 3 to verify database entry</p>
+                    `;
+          } else {
+            resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>✗ Failed:</strong> ${data.message}
+                        </div>
+                        <h3>Debug Information:</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                        <p><strong>Next steps:</strong></p>
+                        <ol>
+                            <li>Check console for errors (F12)</li>
+                            <li>Check backend/runtime/logs/app.log for detailed errors</li>
+                            <li>Verify you are logged in to the backend</li>
+                        </ol>
+                    `;
+          }
+        } catch (error) {
+          resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>✗ Network Error:</strong> ${error.message}
+                    </div>
+                    <p>Are you logged in? Try opening <a href="/earsv2/backend/web/" target="_blank">/earsv2/backend/web/</a></p>
+                `;
+        }
+      }
+
+      function getCsrfToken() {
+        const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        return tokenMeta ? tokenMeta.content : "";
+      }
+
+      async function checkDatabase() {
+        const resultDiv = document.getElementById("dbResult");
+        resultDiv.innerHTML = "<p>Checking database...</p>";
+
+        try {
+          // This would need a new action in the controller
+          resultDiv.innerHTML = `
+                    <div class="error">
+                        <p>To check the database, run this SQL query:</p>
+                        <pre>SELECT * FROM ears_access ORDER BY created_at DESC LIMIT 10;</pre>
+                        <p>Or check in phpMyAdmin</p>
+                    </div>
+                `;
+        } catch (error) {
+          resultDiv.innerHTML = `<div class="error">${error.message}</div>`;
+        }
+      }
+    </script>
+  </body>
+</html>
