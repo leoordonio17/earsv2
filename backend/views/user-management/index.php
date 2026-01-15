@@ -52,8 +52,12 @@ $this->registerCssFile('@web/css/user-management.css', ['depends' => [\yii\boots
             <select id="accessFilter" class="filter-select">
                 <option value="all">All Personnel</option>
                 <option value="granted">Access Granted</option>
-                <option value="revoked">Access Revoked</option>
                 <option value="pending">No Access</option>
+            </select>
+            <select id="roleFilter" class="filter-select">
+                <option value="all">All Roles</option>
+                <option value="administrator">Administrator</option>
+                <option value="personnel">Personnel</option>
             </select>
             <button class="btn-refresh" onclick="refreshPersonnel()">
                 <span class="refresh-icon">🔄</span> Refresh
@@ -72,13 +76,14 @@ $this->registerCssFile('@web/css/user-management.css', ['depends' => [\yii\boots
                     <th>Department</th>
                     <th>Division</th>
                     <th>Position</th>
+                    <th width="120" class="text-center">Role</th>
                     <th width="150" class="text-center">Access Status</th>
                     <th width="120" class="text-center">Actions</th>
                 </tr>
             </thead>
             <tbody id="personnelTableBody">
                 <tr>
-                    <td colspan="8" class="text-center loading-row">
+                    <td colspan="9" class="text-center loading-row">
                         <div class="loading-spinner"></div>
                         <p>Loading personnel from PIDS API...</p>
                     </td>
@@ -131,7 +136,7 @@ function renderPersonnel(data) {
     const tbody = document.getElementById('personnelTableBody');
     
     if (!data || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No personnel found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center">No personnel found</td></tr>';
         return;
     }
 
@@ -139,9 +144,21 @@ function renderPersonnel(data) {
         const hasAccess = person.has_access;
         const statusClass = hasAccess ? 'status-granted' : 'status-pending';
         const statusText = hasAccess ? 'Granted' : 'No Access';
-        const actionBtn = hasAccess 
-            ? `<button class="btn-action btn-revoke" onclick="revokeAccess(${person.id})">Revoke</button>`
-            : `<button class="btn-action btn-grant" onclick="grantAccess(${person.id})">Grant Access</button>`;
+        const role = person.role || 'personnel';
+        const roleText = role === 'administrator' ? 'Administrator' : 'Personnel';
+        const roleBadgeClass = role === 'administrator' ? 'role-admin' : 'role-personnel';
+        
+        // Disable revoke button for current user
+        let actionBtn;
+        if (hasAccess) {
+            if (person.is_current_user) {
+                actionBtn = `<button class="btn-action btn-revoke" disabled title="Cannot revoke your own account">Revoke</button>`;
+            } else {
+                actionBtn = `<button class="btn-action btn-revoke" onclick="revokeAccess(${person.id})">Revoke</button>`;
+            }
+        } else {
+            actionBtn = `<button class="btn-action btn-grant" onclick="grantAccess(${person.id})">Grant Access</button>`;
+        }
 
         const initial = person.full_name.charAt(0).toUpperCase();
         const profilePic = person.profile_picture 
@@ -157,6 +174,9 @@ function renderPersonnel(data) {
                 <td>${person.division || '-'}</td>
                 <td>${person.position || '-'}</td>
                 <td class="text-center">
+                    ${hasAccess ? `<span class="role-badge ${roleBadgeClass}">${roleText}</span>` : '-'}
+                </td>
+                <td class="text-center">
                     <span class="status-badge ${statusClass}">${statusText}</span>
                 </td>
                 <td class="text-center">${actionBtn}</td>
@@ -165,21 +185,59 @@ function renderPersonnel(data) {
     }).join('');
 }
 
-// Grant access
+// Grant access with role selection
 function grantAccess(pidsId) {
-    if (!confirm('Grant EARS access to this user?')) return;
+    // Create modal for role selection
+    const modalHtml = `
+        <div class="modal-overlay" id="roleModal" onclick="closeRoleModal(event)">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <h3>Grant Access - Select Role</h3>
+                <p>Choose the role for this user:</p>
+                <div class="role-options">
+                    <label class="role-option">
+                        <input type="radio" name="role" value="personnel" checked>
+                        <span class="role-label">
+                            <strong>Personnel</strong>
+                            <small>Regular user access</small>
+                        </span>
+                    </label>
+                    <label class="role-option">
+                        <input type="radio" name="role" value="administrator">
+                        <span class="role-label">
+                            <strong>Administrator</strong>
+                            <small>Full access including Settings</small>
+                        </span>
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeRoleModal()">Cancel</button>
+                    <button class="btn-confirm" onclick="confirmGrantAccess(${pidsId})">Grant Access</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
 
-    const btn = event.target;
-    btn.disabled = true;
-    btn.innerHTML = 'Processing...';
+function closeRoleModal(event) {
+    const modal = document.getElementById('roleModal');
+    if (modal) {
+        modal.remove();
+    }
+}
 
+function confirmGrantAccess(pidsId) {
+    const selectedRole = document.querySelector('input[name="role"]:checked').value;
+    closeRoleModal();
+    
     fetch('<?= Url::to(['user-management/grant-access']) ?>', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
             'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>'
         },
-        body: 'pids_id=' + pidsId
+        body: 'pids_id=' + pidsId + '&role=' + selectedRole
     })
     .then(response => response.json())
     .then(result => {
@@ -188,15 +246,11 @@ function grantAccess(pidsId) {
             refreshPersonnel();
         } else {
             showError(result.message);
-            btn.disabled = false;
-            btn.innerHTML = 'Grant Access';
         }
     })
     .catch(error => {
         console.error('Error:', error);
         showError('Failed to grant access');
-        btn.disabled = false;
-        btn.innerHTML = 'Grant Access';
     });
 }
 
@@ -237,7 +291,7 @@ function revokeAccess(pidsId) {
 
 // Refresh personnel list
 function refreshPersonnel() {
-    document.getElementById('personnelTableBody').innerHTML = '<tr><td colspan="7" class="text-center loading-row"><div class="loading-spinner"></div><p>Refreshing...</p></td></tr>';
+    document.getElementById('personnelTableBody').innerHTML = '<tr><td colspan="9" class="text-center loading-row"><div class="loading-spinner"></div><p>Refreshing...</p></td></tr>';
     loadPersonnel();
 }
 
@@ -267,22 +321,39 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
         person.email.toLowerCase().includes(searchTerm) ||
         (person.department && person.department.toLowerCase().includes(searchTerm))
     );
-    renderPersonnel(sortPersonnelAlphabetically(filtered));
+    applyFilters(filtered);
 });
 
-// Filter functionality
+// Access filter functionality
 document.getElementById('accessFilter').addEventListener('change', function(e) {
-    const filter = e.target.value;
-    let filtered = personnelData;
+    applyFilters();
+});
+
+// Role filter functionality
+document.getElementById('roleFilter').addEventListener('change', function(e) {
+    applyFilters();
+});
+
+// Apply all filters
+function applyFilters(data = null) {
+    let filtered = data || personnelData;
     
-    if (filter === 'granted') {
-        filtered = personnelData.filter(p => p.has_access === true);
-    } else if (filter === 'revoked' || filter === 'pending') {
-        filtered = personnelData.filter(p => p.has_access === false);
+    // Apply access filter
+    const accessFilter = document.getElementById('accessFilter').value;
+    if (accessFilter === 'granted') {
+        filtered = filtered.filter(p => p.has_access === true);
+    } else if (accessFilter === 'pending') {
+        filtered = filtered.filter(p => p.has_access === false);
+    }
+    
+    // Apply role filter
+    const roleFilter = document.getElementById('roleFilter').value;
+    if (roleFilter !== 'all') {
+        filtered = filtered.filter(p => p.role === roleFilter);
     }
     
     renderPersonnel(sortPersonnelAlphabetically(filtered));
-});
+}
 
 // Show success message
 function showSuccess(message) {

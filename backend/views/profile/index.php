@@ -88,6 +88,20 @@ $initial = strtoupper(substr($fullName, 0, 1));
                         </div>
                         <div class="info-value"><?= Html::encode($division ?: 'Not set') ?></div>
                     </div>
+
+                    <div class="info-item">
+                        <div class="info-label">
+                            <span class="info-icon">🔐</span>
+                            Role
+                        </div>
+                        <div class="info-value">
+                            <?php 
+                            $roleText = $user->role === 'administrator' ? 'Administrator' : 'Personnel';
+                            $roleClass = $user->role === 'administrator' ? 'role-badge-admin' : 'role-badge-personnel';
+                            ?>
+                            <span class="<?= $roleClass ?>"><?= Html::encode($roleText) ?></span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -281,6 +295,30 @@ $initial = strtoupper(substr($fullName, 0, 1));
     font-size: 16px;
     color: #2D1F13;
     font-weight: 500;
+}
+
+.role-badge-admin {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, #967259, #B8926A);
+    color: white;
+}
+
+.role-badge-personnel {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: #E8D4BC;
+    color: #3E2F1F;
 }
 
 .profile-notice {

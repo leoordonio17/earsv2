@@ -61,7 +61,8 @@ if (!Yii::$app->user->isGuest) {
                         <?= Html::a('<span class="nav-icon">👥</span><span class="nav-text">Users</span>', '#', ['class' => 'nav-link']) ?>
                     </li>
                     
-                    <!-- Settings Submenu -->
+                    <!-- Settings Submenu (Administrator Only) -->
+                    <?php if (Yii::$app->user->identity->role === \common\models\User::ROLE_ADMINISTRATOR): ?>
                     <li class="nav-item nav-item-expandable">
                         <a href="#" class="nav-link" onclick="toggleSettingsMenu(event)">
                             <span class="nav-icon">⚙️</span>
@@ -77,6 +78,7 @@ if (!Yii::$app->user->isGuest) {
                             </li>
                         </ul>
                     </li>
+                    <?php endif; ?>
                 </ul>
             </nav>
         </aside>

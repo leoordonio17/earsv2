@@ -26,7 +26,13 @@ class UserManagementController extends Controller
                     [
                         'allow' => true,
                         'roles' => ['@'], // Only authenticated users
-                        // TODO: Add role-based access control for admin only
+                        'matchCallback' => function ($rule, $action) {
+                            // Only administrators can access user management
+                            return Yii::$app->user->identity->role === User::ROLE_ADMINISTRATOR;
+                        },
+                        'denyCallback' => function ($rule, $action) {
+                            throw new \yii\web\ForbiddenHttpException('You do not have permission to access this page.');
+                        },
                     ],
                 ],
             ],
@@ -89,12 +95,14 @@ class UserManagementController extends Controller
         Yii::info('Get Personnel AJAX - Fetched: ' . count($allPersonnel ?: []) . ' personnel', __METHOD__);
 
         if ($allPersonnel && is_array($allPersonnel)) {
-            // Get current users with EARS accounts
+            // Get current users with EARS accounts (all statuses to show roles)
             $earsUsers = User::find()
                 ->where(['not', ['pids_id' => null]])
-                ->andWhere(['status' => User::STATUS_ACTIVE])
                 ->indexBy('pids_id')
                 ->all();
+
+            // Get current logged-in user's PIDS ID
+            $currentUserPidsId = Yii::$app->user->identity->pids_id;
 
             $result = [];
             foreach ($allPersonnel as $person) {
@@ -106,7 +114,9 @@ class UserManagementController extends Controller
                     continue;
                 }
                 
-                $hasAccess = isset($earsUsers[$pidsId]);
+                // Check if user exists and is active
+                $hasAccess = isset($earsUsers[$pidsId]) && $earsUsers[$pidsId]->status === User::STATUS_ACTIVE;
+                $isCurrentUser = ($pidsId == $currentUserPidsId);
 
                 // Extract data from nested structure and accounts array
                 $username = '';
@@ -130,6 +140,8 @@ class UserManagementController extends Controller
                     'division' => $pidsApi->getDivisionName($person),
                     'position' => $person['position'] ?? '',
                     'has_access' => $hasAccess,
+                    'role' => $hasAccess && isset($earsUsers[$pidsId]) ? $earsUsers[$pidsId]->role : null,
+                    'is_current_user' => $isCurrentUser,
                 ];
             }
 
@@ -219,11 +231,19 @@ class UserManagementController extends Controller
         Yii::info('Granting access for PIDS ID: ' . $pidsId . ' by admin ID: ' . $adminId, __METHOD__);
         Yii::info('Personnel data: ' . print_r($personnelData, true), __METHOD__);
 
+        // Get role from POST data, default to personnel
+        $role = Yii::$app->request->post('role', User::ROLE_PERSONNEL);
+        
+        // Validate role
+        if (!in_array($role, [User::ROLE_PERSONNEL, User::ROLE_ADMINISTRATOR])) {
+            $role = User::ROLE_PERSONNEL;
+        }
+
         // Grant access by creating/updating User account
-        $result = User::grantAccess($pidsId, $personnelData);
+        $result = User::grantAccess($pidsId, $personnelData, $role);
         
         if ($result) {
-            Yii::info('Access granted successfully for PIDS ID: ' . $pidsId, __METHOD__);
+            Yii::info('Access granted successfully for PIDS ID: ' . $pidsId . ' with role: ' . $role, __METHOD__);
             return [
                 'success' => true,
                 'message' => 'User account created successfully',

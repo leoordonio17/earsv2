@@ -34,6 +34,9 @@ class User extends ActiveRecord implements IdentityInterface
     const STATUS_INACTIVE = 9;
     const STATUS_ACTIVE = 10;
 
+    const ROLE_PERSONNEL = 'personnel';
+    const ROLE_ADMINISTRATOR = 'administrator';
+
 
     /**
      * {@inheritdoc}
@@ -61,6 +64,8 @@ class User extends ActiveRecord implements IdentityInterface
         return [
             ['status', 'default', 'value' => self::STATUS_INACTIVE],
             ['status', 'in', 'range' => [self::STATUS_ACTIVE, self::STATUS_INACTIVE, self::STATUS_DELETED]],
+            ['role', 'default', 'value' => self::ROLE_PERSONNEL],
+            ['role', 'in', 'range' => [self::ROLE_PERSONNEL, self::ROLE_ADMINISTRATOR]],
             [['pids_id'], 'integer'],
             [['full_name', 'position', 'department', 'division', 'profile_picture'], 'string', 'max' => 255],
         ];
@@ -223,9 +228,10 @@ class User extends ActiveRecord implements IdentityInterface
      * 
      * @param int $pidsId PIDS personnel ID
      * @param array $personnelData Personnel data from PIDS API
+     * @param string $role User role (administrator or personnel)
      * @return bool
      */
-    public static function grantAccess($pidsId, $personnelData)
+    public static function grantAccess($pidsId, $personnelData, $role = self::ROLE_PERSONNEL)
     {
         // Find existing user by pids_id
         $user = self::find()->where(['pids_id' => $pidsId])->one();
@@ -281,6 +287,7 @@ class User extends ActiveRecord implements IdentityInterface
             $user->password_hash = $passwordHash;
         }
         $user->status = self::STATUS_ACTIVE;
+        $user->role = $role;
         
         if (!$user->save()) {
             Yii::error('Failed to save User: ' . print_r($user->errors, true), __METHOD__);
