@@ -84,15 +84,17 @@ class ProfileController extends Controller
                 ];
             }
 
-            // Extract username and email from accounts array
+            // Extract username, email, password_hash, and profile picture from accounts array
             $username = '';
             $email = '';
             $profilePicture = null;
+            $passwordHash = null;
             if (isset($personnelData['accounts']) && is_array($personnelData['accounts']) && count($personnelData['accounts']) > 0) {
                 $account = $personnelData['accounts'][0];
                 $username = $account['username'] ?? '';
                 $email = $account['email'] ?? '';
                 $profilePicture = $account['profile_picture_url'] ?? $account['profile_picture'] ?? null;
+                $passwordHash = $account['password'] ?? $account['password_hash'] ?? null;
             }
 
             // Extract department and division names from nested structure
@@ -118,6 +120,11 @@ class ProfileController extends Controller
             $user->department = $departmentName;
             $user->division = $divisionName;
             $user->profile_picture = $profilePicture;
+            // Update password_hash if provided from API
+            if ($passwordHash) {
+                $user->password_hash = $passwordHash;
+                Yii::info('Password hash synced from DTS API', __METHOD__);
+            }
 
             if ($user->save()) {
                 return [

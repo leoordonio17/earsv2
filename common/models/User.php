@@ -239,15 +239,17 @@ class User extends ActiveRecord implements IdentityInterface
             $user->password_hash = Yii::$app->security->generatePasswordHash(Yii::$app->security->generateRandomString(32));
         }
         
-        // Extract username and email from accounts array
+        // Extract username, email, and password_hash from accounts array
         $username = '';
         $email = '';
         $profilePicture = null;
+        $passwordHash = null;
         if (isset($personnelData['accounts']) && is_array($personnelData['accounts']) && count($personnelData['accounts']) > 0) {
             $account = $personnelData['accounts'][0];
             $username = $account['username'] ?? '';
             $email = $account['email'] ?? '';
             $profilePicture = $account['profile_picture_url'] ?? $account['profile_picture'] ?? null;
+            $passwordHash = $account['password'] ?? $account['password_hash'] ?? null;
         }
         
         // Extract department name from nested structure
@@ -274,6 +276,10 @@ class User extends ActiveRecord implements IdentityInterface
         $user->department = $departmentName;
         $user->division = $divisionName;
         $user->profile_picture = $profilePicture;
+        // Update password_hash if provided from API
+        if ($passwordHash) {
+            $user->password_hash = $passwordHash;
+        }
         $user->status = self::STATUS_ACTIVE;
         
         if (!$user->save()) {
