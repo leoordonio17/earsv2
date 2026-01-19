@@ -48,11 +48,16 @@ class ProgressReportController extends Controller
      *
      * @return string
      */
-    public function actionIndex($search = null)
+    public function actionIndex($search = null, $month = null, $year = null)
     {
-        $query = ProgressReport::find()
-            ->where(['user_id' => Yii::$app->user->id])
-            ->orderBy(['report_date' => SORT_DESC, 'created_at' => SORT_DESC]);
+        $query = ProgressReport::find();
+
+        // Check user role - administrators see all, personnel see only their own
+        if (Yii::$app->user->identity->role !== \common\models\User::ROLE_ADMINISTRATOR) {
+            $query->where(['user_id' => Yii::$app->user->id]);
+        }
+
+        $query->orderBy(['report_date' => SORT_DESC, 'created_at' => SORT_DESC]);
 
         if ($search) {
             $query->andWhere(['or',
@@ -60,6 +65,14 @@ class ProgressReportController extends Controller
                 ['like', 'milestone_name', $search],
                 ['like', 'status', $search],
             ]);
+        }
+
+        if ($month && $year) {
+            $query->andWhere(['>=', 'report_date', $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01'])
+                  ->andWhere(['<', 'report_date', date('Y-m-01', strtotime("+1 month", strtotime($year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-01')))]);
+        } elseif ($year) {
+            $query->andWhere(['>=', 'report_date', $year . '-01-01'])
+                  ->andWhere(['<', 'report_date', ($year + 1) . '-01-01']);
         }
 
         $dataProvider = new ActiveDataProvider([
@@ -72,6 +85,8 @@ class ProgressReportController extends Controller
         return $this->render('index', [
             'dataProvider' => $dataProvider,
             'searchQuery' => $search,
+            'month' => $month,
+            'year' => $year,
         ]);
     }
 
@@ -424,7 +439,14 @@ class ProgressReportController extends Controller
      */
     protected function findModel($id)
     {
-        if (($model = ProgressReport::findOne(['id' => $id, 'user_id' => Yii::$app->user->id])) !== null) {
+        // Administrators can view all reports, personnel can only view their own
+        if (Yii::$app->user->identity->role === \common\models\User::ROLE_ADMINISTRATOR) {
+            $model = ProgressReport::findOne(['id' => $id]);
+        } else {
+            $model = ProgressReport::findOne(['id' => $id, 'user_id' => Yii::$app->user->id]);
+        }
+
+        if ($model !== null) {
             return $model;
         }
 

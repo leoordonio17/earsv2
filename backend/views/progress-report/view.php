@@ -264,6 +264,17 @@ $this->params['breadcrumbs'][] = $this->title;
                     'format' => 'raw',
                 ],
                 [
+                    'label' => 'Created By',
+                    'value' => function($model) {
+                        if (Yii::$app->user->identity->role === \common\models\User::ROLE_ADMINISTRATOR) {
+                            return $model->user ? Html::encode($model->user->username) : 'N/A';
+                        }
+                        return null;
+                    },
+                    'format' => 'raw',
+                    'visible' => Yii::$app->user->identity->role === \common\models\User::ROLE_ADMINISTRATOR,
+                ],
+                [
                     'attribute' => 'created_at',
                     'format' => ['datetime', 'php:F d, Y h:i A'],
                 ],

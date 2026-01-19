@@ -49,7 +49,7 @@ if (!Yii::$app->user->isGuest) {
             <nav class="sidebar-nav">
                 <ul class="nav-list">
                     <li class="nav-item <?= Yii::$app->controller->id === 'site' && Yii::$app->controller->action->id === 'index' ? 'active' : '' ?>">
-                        <?= Html::a('<span class="nav-icon">📊</span><span class="nav-text">Dashboard</span>', ['/site/index'], ['class' => 'nav-link']) ?>
+                        <?= Html::a('<span class="nav-icon">🏠</span><span class="nav-text">Dashboard</span>', ['/site/index'], ['class' => 'nav-link']) ?>
                     </li>
 
                     <!-- Tasks Menu -->
@@ -70,7 +70,7 @@ if (!Yii::$app->user->isGuest) {
                     </li>
 
                     <li class="nav-item <?= Yii::$app->controller->id === 'progress-report' ? 'active' : '' ?>">
-                        <?= Html::a('<span class="nav-icon">📊</span><span class="nav-text">Progress Report</span>', ['/progress-report/index'], ['class' => 'nav-link']) ?>
+                        <?= Html::a('<span class="nav-icon">📈</span><span class="nav-text">Progress Report</span>', ['/progress-report/index'], ['class' => 'nav-link']) ?>
                     </li>
                     <li class="nav-item">
                         <?= Html::a('<span class="nav-icon">📝</span><span class="nav-text">Reports</span>', '#', ['class' => 'nav-link']) ?>

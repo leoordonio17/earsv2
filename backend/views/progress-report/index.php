@@ -199,6 +199,57 @@ $this->params['breadcrumbs'][] = $this->title;
         font-weight: 600;
     }
 
+    .filter-box {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .filter-box select {
+        padding: 10px 15px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .filter-box select option {
+        background: #967259;
+        color: white;
+    }
+
+    .filter-box select:focus {
+        outline: none;
+        background: rgba(255, 255, 255, 0.3);
+        border-color: white;
+    }
+
+    .btn-clear {
+        padding: 10px 20px;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .btn-clear:hover {
+        background: rgba(255, 255, 255, 0.3);
+        border-color: white;
+        color: white;
+        text-decoration: none;
+    }
+
     .empty-state {
         text-align: center;
         padding: 80px 20px;
@@ -234,6 +285,10 @@ $this->params['breadcrumbs'][] = $this->title;
         .search-box {
             width: 100%;
         }
+
+        .filter-box {
+            flex-wrap: wrap;
+        }
     }
 </style>
 
@@ -241,9 +296,34 @@ $this->params['breadcrumbs'][] = $this->title;
     <div class="index-header">
         <h1>📊 <?= Html::encode($this->title) ?></h1>
         <div class="header-actions">
-            <form method="get" action="<?= Url::to(['index']) ?>" class="search-box">
-                <input type="text" name="search" placeholder="Search reports..." value="<?= Html::encode($searchQuery) ?>">
-                <button type="submit">🔍</button>
+            <form method="get" action="<?= Url::to(['index']) ?>" class="filter-box" id="filter-form">
+                <select name="month" id="month-filter">
+                    <option value="">All Months</option>
+                    <?php for ($m = 1; $m <= 12; $m++): ?>
+                        <option value="<?= $m ?>" <?= $month == $m ? 'selected' : '' ?>>
+                            <?= date('F', mktime(0, 0, 0, $m, 1)) ?>
+                        </option>
+                    <?php endfor; ?>
+                </select>
+                
+                <select name="year" id="year-filter">
+                    <option value="">All Years</option>
+                    <?php 
+                    $currentYear = date('Y');
+                    for ($y = $currentYear; $y >= $currentYear - 5; $y--): 
+                    ?>
+                        <option value="<?= $y ?>" <?= $year == $y ? 'selected' : '' ?>>
+                            <?= $y ?>
+                        </option>
+                    <?php endfor; ?>
+                </select>
+                
+                <input type="text" name="search" placeholder="Search..." value="<?= Html::encode($searchQuery) ?>" 
+                       style="padding: 10px 15px; border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 8px; background: rgba(255, 255, 255, 0.2); color: white; font-size: 14px; width: 200px;">
+                
+                <button type="submit" style="padding: 10px 20px; background: rgba(255, 255, 255, 0.3); color: white; border: 2px solid rgba(255, 255, 255, 0.5); border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">🔍 Filter</button>
+                
+                <?= Html::a('🔄 Clear', ['index'], ['class' => 'btn-clear']) ?>
             </form>
             <?= Html::a('➕ Create Report', ['create'], ['class' => 'btn-create']) ?>
         </div>
