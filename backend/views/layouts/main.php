@@ -72,11 +72,11 @@ if (!Yii::$app->user->isGuest) {
                     <li class="nav-item <?= Yii::$app->controller->id === 'progress-report' ? 'active' : '' ?>">
                         <?= Html::a('<span class="nav-icon">📈</span><span class="nav-text">Progress Report</span>', ['/progress-report/index'], ['class' => 'nav-link']) ?>
                     </li>
-                    <li class="nav-item">
-                        <?= Html::a('<span class="nav-icon">📝</span><span class="nav-text">Reports</span>', '#', ['class' => 'nav-link']) ?>
+                    <li class="nav-item <?= Yii::$app->controller->id === 'analytics' ? 'active' : '' ?>">
+                        <?= Html::a('<span class="nav-icon">📊</span><span class="nav-text">Analytics</span>', ['/analytics/index'], ['class' => 'nav-link']) ?>
                     </li>
                     <li class="nav-item">
-                        <?= Html::a('<span class="nav-icon">📈</span><span class="nav-text">Analytics</span>', '#', ['class' => 'nav-link']) ?>
+                        <?= Html::a('<span class="nav-icon">📝</span><span class="nav-text">Reports</span>', '#', ['class' => 'nav-link']) ?>
                     </li>
                     
                     <!-- Settings Submenu (Administrator Only) -->
