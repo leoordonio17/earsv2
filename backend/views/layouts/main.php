@@ -88,6 +88,9 @@ if (!Yii::$app->user->isGuest) {
                             <li class="submenu-item <?= Yii::$app->controller->id === 'milestone' ? 'active' : '' ?>">
                                 <?= Html::a('<span class="submenu-icon">🏆</span><span class="submenu-text">Milestone</span>', ['/milestone/index'], ['class' => 'submenu-link']) ?>
                             </li>
+                            <li class="submenu-item <?= Yii::$app->controller->id === 'project-assignment' ? 'active' : '' ?>">
+                                <?= Html::a('<span class="submenu-icon">📌</span><span class="submenu-text">Project Assignment</span>', ['/project-assignment/index'], ['class' => 'submenu-link']) ?>
+                            </li>
                         </ul>
                     </li>
                     <?php endif; ?>
