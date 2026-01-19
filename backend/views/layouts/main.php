@@ -76,6 +76,12 @@ if (!Yii::$app->user->isGuest) {
                             <li class="submenu-item <?= Yii::$app->controller->id === 'status' ? 'active' : '' ?>">
                                 <?= Html::a('<span class="submenu-icon">📋</span><span class="submenu-text">Status</span>', ['/status/index'], ['class' => 'submenu-link']) ?>
                             </li>
+                            <li class="submenu-item <?= Yii::$app->controller->id === 'task-type' ? 'active' : '' ?>">
+                                <?= Html::a('<span class="submenu-icon">📝</span><span class="submenu-text">Task Type</span>', ['/task-type/index'], ['class' => 'submenu-link']) ?>
+                            </li>
+                            <li class="submenu-item <?= Yii::$app->controller->id === 'task-category' ? 'active' : '' ?>">
+                                <?= Html::a('<span class="submenu-icon">🗂️</span><span class="submenu-text">Task Category</span>', ['/task-category/index'], ['class' => 'submenu-link']) ?>
+                            </li>
                         </ul>
                     </li>
                     <?php endif; ?>
