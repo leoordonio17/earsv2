@@ -11,6 +11,7 @@ return [
     'basePath' => dirname(__DIR__),
     'controllerNamespace' => 'backend\controllers',
     'bootstrap' => ['log'],
+    'timeZone' => 'Asia/Manila',
     'modules' => [],
     'components' => [
         'request' => [

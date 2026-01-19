@@ -292,6 +292,13 @@ $this->title = 'Update Project Assignment: ' . $model->project_name;
     </div>
 
     <div class="form-card">
+        <div style="background: #f8f5f1; border-left: 4px solid #967259; padding: 15px; margin-bottom: 25px; border-radius: 8px;">
+            <p style="margin: 0; color: #2D1F13; font-size: 14px;">
+                <strong>📝 Form Instructions:</strong> Fields marked with <span style="color: #c92a2a; font-weight: bold;">*</span> are required. 
+                At least one researcher must be selected. The project cannot be changed when editing - delete and create new assignment to change project.
+            </p>
+        </div>
+
         <?php $form = ActiveForm::begin([
             'id' => 'project-assignment-form',
             'options' => ['class' => 'project-assignment-form'],
@@ -322,7 +329,7 @@ $this->title = 'Update Project Assignment: ' . $model->project_name;
         </div>
 
         <div class="form-group field-projectassignment-user_ids">
-            <?= Html::label('Researchers (Select Multiple)', 'researcher-ids', ['class' => 'form-label']) ?>
+            <?= Html::label('Researchers (Select Multiple) <span style="color: #c92a2a; margin-left: 3px;">*</span>', 'researcher-ids', ['class' => 'form-label']) ?>
             <?php
             // Get current project's all researchers for pre-selection
             $currentResearchers = ProjectAssignment::find()
@@ -353,8 +360,8 @@ $this->title = 'Update Project Assignment: ' . $model->project_name;
                 'theme' => Select2::THEME_DEFAULT,
                 'size' => Select2::MEDIUM,
             ]); ?>
-            <small style="color: #6c757d; display: block; margin-top: 5px;">
-                Click to select multiple researchers for this project. Current researchers are pre-selected.
+            <small style="color: #666; display: block; margin-top: 5px;">
+                <strong>Required field.</strong> At least one researcher must be selected. Current researchers are pre-selected. Add or remove researchers as needed.
             </small>
             <div id="researcher-ids-error" class="help-block" style="display: none; color: #e74c3c;"></div>
         </div>

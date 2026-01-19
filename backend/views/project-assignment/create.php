@@ -301,6 +301,13 @@ $this->title = 'Create Project Assignment';
     </div>
 
     <div class="form-card">
+        <div style="background: #f8f5f1; border-left: 4px solid #967259; padding: 15px; margin-bottom: 25px; border-radius: 8px;">
+            <p style="margin: 0; color: #2D1F13; font-size: 14px;">
+                <strong>📝 Form Instructions:</strong> Fields marked with <span style="color: #c92a2a; font-weight: bold;">*</span> are required. 
+                Both project and at least one researcher must be selected. Only unassigned projects are shown in the dropdown.
+            </p>
+        </div>
+
         <?php $form = ActiveForm::begin([
             'id' => 'project-assignment-form',
             'options' => ['class' => 'project-assignment-form'],
@@ -313,7 +320,7 @@ $this->title = 'Create Project Assignment';
         ]); ?>
 
         <div class="form-group field-projectassignment-project_id">
-            <?= Html::label('Project', 'project-dropdown', ['class' => 'form-label']) ?>
+            <?= Html::label('Project <span style="color: #c92a2a; margin-left: 3px;">*</span>', 'project-dropdown', ['class' => 'form-label']) ?>
             <?php 
             $projects = ProjectAssignment::fetchProjectsFromAPI(true); // true = exclude assigned projects
             ?>
@@ -324,13 +331,13 @@ $this->title = 'Create Project Assignment';
             ]) ?>
             <?= $form->field($model, 'project_id')->hiddenInput(['id' => 'project-id-hidden'])->label(false) ?>
             <?= $form->field($model, 'project_name')->hiddenInput(['id' => 'project-name-hidden'])->label(false) ?>
-            <small style="color: #6c757d; display: block; margin-top: 5px;">
-                Projects loaded from: <?= strpos(Yii::$app->request->hostInfo, 'localhost') !== false ? 'localhost/pmisv2' : 'projects.pids.gov.ph' ?>
+            <small style="color: #666; display: block; margin-top: 5px;">
+                <strong>Required field.</strong> Only unassigned projects are shown. Projects loaded from: <?= strpos(Yii::$app->request->hostInfo, 'localhost') !== false ? 'localhost/pmisv2' : 'projects.pids.gov.ph' ?>
             </small>
         </div>
 
         <div class="form-group field-projectassignment-user_ids">
-            <?= Html::label('Researchers (Select Multiple)', 'researcher-ids', ['class' => 'form-label']) ?>
+            <?= Html::label('Researchers (Select Multiple) <span style="color: #c92a2a; margin-left: 3px;">*</span>', 'researcher-ids', ['class' => 'form-label']) ?>
             <?= Select2::widget([
                 'name' => 'researcher_ids',
                 'data' => ProjectAssignment::getResearcherDropdownList(),
@@ -353,8 +360,8 @@ $this->title = 'Create Project Assignment';
                 'theme' => Select2::THEME_DEFAULT,
                 'size' => Select2::MEDIUM,
             ]); ?>
-            <small style="color: #6c757d; display: block; margin-top: 5px;">
-                Click to select multiple researchers for this project
+            <small style="color: #666; display: block; margin-top: 5px;">
+                <strong>Required field.</strong> At least one researcher must be selected. You can assign multiple researchers to the same project.
             </small>
             <div id="researcher-ids-error" class="help-block" style="display: none; color: #e74c3c;"></div>
         </div>

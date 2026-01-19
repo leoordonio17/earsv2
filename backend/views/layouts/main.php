@@ -51,6 +51,24 @@ if (!Yii::$app->user->isGuest) {
                     <li class="nav-item <?= Yii::$app->controller->id === 'site' && Yii::$app->controller->action->id === 'index' ? 'active' : '' ?>">
                         <?= Html::a('<span class="nav-icon">📊</span><span class="nav-text">Dashboard</span>', ['/site/index'], ['class' => 'nav-link']) ?>
                     </li>
+
+                    <!-- Tasks Menu -->
+                    <li class="nav-item nav-item-expandable <?= in_array(Yii::$app->controller->id, ['workplan', 'accomplishment']) ? 'expanded' : '' ?>">
+                        <a href="#" class="nav-link" onclick="toggleTasksMenu(event)">
+                            <span class="nav-icon">📋</span>
+                            <span class="nav-text">Tasks</span>
+                            <span class="nav-arrow">›</span>
+                        </a>
+                        <ul class="submenu" id="tasksSubmenu">
+                            <li class="submenu-item <?= Yii::$app->controller->id === 'workplan' ? 'active' : '' ?>">
+                                <?= Html::a('<span class="submenu-icon">📝</span><span class="submenu-text">Workplan</span>', ['/workplan/index'], ['class' => 'submenu-link']) ?>
+                            </li>
+                            <li class="submenu-item <?= Yii::$app->controller->id === 'accomplishment' ? 'active' : '' ?>">
+                                <?= Html::a('<span class="submenu-icon">✅</span><span class="submenu-text">Accomplishment</span>', ['/accomplishment/index'], ['class' => 'submenu-link']) ?>
+                            </li>
+                        </ul>
+                    </li>
+
                     <li class="nav-item">
                         <?= Html::a('<span class="nav-icon">📝</span><span class="nav-text">Reports</span>', '#', ['class' => 'nav-link']) ?>
                     </li>
@@ -207,6 +225,14 @@ if (!Yii::$app->user->isGuest) {
         function toggleSettingsMenu(event) {
             event.preventDefault();
             const submenu = document.getElementById('settingsSubmenu');
+            const navItem = event.currentTarget.closest('.nav-item-expandable');
+            
+            navItem.classList.toggle('expanded');
+        }
+
+        function toggleTasksMenu(event) {
+            event.preventDefault();
+            const submenu = document.getElementById('tasksSubmenu');
             const navItem = event.currentTarget.closest('.nav-item-expandable');
             
             navItem.classList.toggle('expanded');

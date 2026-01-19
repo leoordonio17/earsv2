@@ -8,6 +8,9 @@ return [
             'username' => 'root',
             'password' => '',
             'charset' => 'utf8',
+            'on afterOpen' => function($event) {
+                $event->sender->createCommand("SET time_zone = '+08:00'")->execute();
+            },
         ],
         'mailer' => [
             'class' => \yii\symfonymailer\Mailer::class,
