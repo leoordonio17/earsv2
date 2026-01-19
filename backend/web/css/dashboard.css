@@ -299,6 +299,77 @@ html, body {
     display: none;
 }
 
+/* Nested submenu styles for Libraries */
+.submenu-item-expandable {
+    position: relative;
+}
+
+.submenu-item-expandable > .submenu-link {
+    cursor: pointer !important;
+    user-select: none;
+}
+
+.submenu-arrow {
+    margin-left: auto;
+    font-size: 14px;
+    transition: transform 0.3s ease;
+}
+
+.submenu-item-expandable.expanded > .submenu-link .submenu-arrow {
+    transform: rotate(90deg);
+}
+
+.sub-submenu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.submenu-item-expandable.expanded .sub-submenu {
+    max-height: 200px;
+}
+
+.sub-submenu-item {
+    margin: 0;
+}
+
+.sub-submenu-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px 10px 68px;
+    color: rgba(255, 255, 255, 0.6);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    font-size: 13px;
+    margin: 2px 12px;
+}
+
+.sub-submenu-link:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.sub-submenu-item.active .sub-submenu-link {
+    background: rgba(212, 165, 116, 0.3);
+    color: var(--brown-sand);
+    font-weight: 500;
+}
+
+.sub-submenu-icon {
+    font-size: 14px;
+    min-width: 18px;
+    text-align: center;
+}
+
+.sub-submenu-text {
+    opacity: 1;
+}
+
 /* ========================================
    Main Content Area
    ======================================== */

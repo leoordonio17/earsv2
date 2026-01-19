@@ -73,8 +73,8 @@ if (!Yii::$app->user->isGuest) {
                             <li class="submenu-item <?= Yii::$app->controller->id === 'user-management' ? 'active' : '' ?>">
                                 <?= Html::a('<span class="submenu-icon">👥</span><span class="submenu-text">User Management</span>', ['/user-management/index'], ['class' => 'submenu-link']) ?>
                             </li>
-                            <li class="submenu-item">
-                                <?= Html::a('<span class="submenu-icon">🔧</span><span class="submenu-text">System Settings</span>', '#', ['class' => 'submenu-link']) ?>
+                            <li class="submenu-item <?= Yii::$app->controller->id === 'status' ? 'active' : '' ?>">
+                                <?= Html::a('<span class="submenu-icon">📋</span><span class="submenu-text">Status</span>', ['/status/index'], ['class' => 'submenu-link']) ?>
                             </li>
                         </ul>
                     </li>
@@ -196,6 +196,8 @@ if (!Yii::$app->user->isGuest) {
             
             navItem.classList.toggle('expanded');
         }
+
+
 
         // Event listeners
         document.addEventListener('click', function(event) {
