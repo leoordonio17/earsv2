@@ -72,6 +72,14 @@ if (!Yii::$app->user->isGuest) {
                     <li class="nav-item <?= Yii::$app->controller->id === 'progress-report' ? 'active' : '' ?>">
                         <?= Html::a('<span class="nav-icon">📈</span><span class="nav-text">Progress Report</span>', ['/progress-report/index'], ['class' => 'nav-link']) ?>
                     </li>
+
+                    <!-- Extension Requests (Administrator Only) -->
+                    <?php if (Yii::$app->user->identity->role === \common\models\User::ROLE_ADMINISTRATOR): ?>
+                    <li class="nav-item <?= Yii::$app->controller->id === 'progress-report' && Yii::$app->controller->action->id === 'extension-requests' ? 'active' : '' ?>">
+                        <?= Html::a('<span class="nav-icon">📋</span><span class="nav-text">Extension Requests</span>', ['/progress-report/extension-requests'], ['class' => 'nav-link']) ?>
+                    </li>
+                    <?php endif; ?>
+
                     <li class="nav-item <?= Yii::$app->controller->id === 'analytics' ? 'active' : '' ?>">
                         <?= Html::a('<span class="nav-icon">📊</span><span class="nav-text">Analytics</span>', ['/analytics/index'], ['class' => 'nav-link']) ?>
                     </li>

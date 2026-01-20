@@ -34,6 +34,10 @@ class ProgressReport extends \yii\db\ActiveRecord
     const STATUS_ONGOING = 'On-going';
     const STATUS_DELAYED = 'Delayed';
 
+    const EXTENSION_PENDING = 'pending';
+    const EXTENSION_APPROVED = 'approved';
+    const EXTENSION_REJECTED = 'rejected';
+
     public $uploadedFiles;
 
     /**
@@ -61,13 +65,15 @@ class ProgressReport extends \yii\db\ActiveRecord
     {
         return [
             [['user_id', 'report_date', 'project_id', 'project_name', 'status'], 'required'],
-            [['user_id', 'has_extension'], 'integer'],
-            [['report_date', 'extension_date'], 'safe'],
-            [['project_data', 'deliverables_data', 'extension_justification', 'documents'], 'string'],
+            [['user_id', 'has_extension', 'extension_processed_by', 'extension_processed_at'], 'integer'],
+            [['report_date', 'extension_date', 'extension_approved_date'], 'safe'],
+            [['project_data', 'deliverables_data', 'extension_justification', 'extension_rejection_reason', 'documents'], 'string'],
             [['project_id', 'milestone_id'], 'string', 'max' => 50],
             [['project_name', 'milestone_name'], 'string', 'max' => 255],
             [['status'], 'string', 'max' => 20],
+            [['extension_status'], 'string', 'max' => 20],
             [['status'], 'in', 'range' => [self::STATUS_COMPLETED, self::STATUS_ONGOING, self::STATUS_DELAYED]],
+            [['extension_status'], 'in', 'range' => [self::EXTENSION_PENDING, self::EXTENSION_APPROVED, self::EXTENSION_REJECTED]],
             [['has_extension'], 'boolean'],
             [['extension_date', 'extension_justification'], 'required', 'when' => function($model) {
                 return $model->has_extension == 1;
@@ -76,6 +82,7 @@ class ProgressReport extends \yii\db\ActiveRecord
             }"],
             [['uploadedFiles'], 'file', 'maxFiles' => 10, 'skipOnEmpty' => true],
             [['user_id'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['user_id' => 'id']],
+            [['extension_processed_by'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['extension_processed_by' => 'id']],
         ];
     }
 
@@ -97,8 +104,11 @@ class ProgressReport extends \yii\db\ActiveRecord
             'status' => 'Status',
             'has_extension' => 'Extension Required',
             'extension_date' => 'Proposed Extension Date',
-            'extension_justification' => 'Justification for Extension',
-            'documents' => 'Attached Documents',
+            'extension_justification' => 'Justification for Extension',            'extension_status' => 'Extension Status',
+            'extension_approved_date' => 'Approved Extension Date',
+            'extension_rejection_reason' => 'Rejection Reason',
+            'extension_processed_by' => 'Processed By',
+            'extension_processed_at' => 'Processed At',            'documents' => 'Attached Documents',
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
             'uploadedFiles' => 'Attach Documents',
@@ -190,5 +200,41 @@ class ProgressReport extends \yii\db\ActiveRecord
             default:
                 return '#9e9e9e';
         }
+    }
+
+    /**
+     * Get extension status options
+     */
+    public static function getExtensionStatusOptions()
+    {
+        return [
+            self::EXTENSION_PENDING => 'Pending',
+            self::EXTENSION_APPROVED => 'Approved',
+            self::EXTENSION_REJECTED => 'Rejected',
+        ];
+    }
+
+    /**
+     * Get extension status badge
+     */
+    public function getExtensionStatusBadge()
+    {
+        switch ($this->extension_status) {
+            case self::EXTENSION_APPROVED:
+                return '<span style="background: #4caf50; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✓ Approved</span>';
+            case self::EXTENSION_REJECTED:
+                return '<span style="background: #f44336; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✗ Rejected</span>';
+            case self::EXTENSION_PENDING:
+            default:
+                return '<span style="background: #ff9800; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">⏳ Pending</span>';
+        }
+    }
+
+    /**
+     * Get processor relation
+     */
+    public function getProcessor()
+    {
+        return $this->hasOne(User::class, ['id' => 'extension_processed_by']);
     }
 }

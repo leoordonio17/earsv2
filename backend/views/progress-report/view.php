@@ -411,13 +411,49 @@ $this->params['breadcrumbs'][] = $this->title;
             </div>
 
             <div class="extension-section">
-                <p><span class="extension-badge">⚠️ Extension Required</span></p>
-                <br>
+                <div style="margin-bottom: 15px;">
+                    <?= $model->extensionStatusBadge ?>
+                </div>
+
                 <strong>Proposed Extension Date:</strong> <?= Yii::$app->formatter->asDate($model->extension_date, 'php:F d, Y') ?><br><br>
                 <strong>Justification:</strong><br>
                 <div style="white-space: pre-wrap; margin-top: 10px; padding: 10px; background: white; border-radius: 8px;">
                     <?= Html::encode($model->extension_justification) ?>
                 </div>
+
+                <?php if ($model->extension_status === \common\models\ProgressReport::EXTENSION_APPROVED): ?>
+                    <div style="margin-top: 20px; padding: 20px; background: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 8px;">
+                        <p style="margin: 0 0 10px 0; font-weight: 600; color: #2e7d32;">✓ Extension Approved</p>
+                        <p style="margin: 0;"><strong>Approved Extension Date:</strong> <?= Yii::$app->formatter->asDate($model->extension_approved_date, 'php:F d, Y') ?></p>
+                        <?php if ($model->processor): ?>
+                            <p style="margin: 5px 0 0 0; color: #666; font-size: 13px;">
+                                Approved by: <?= Html::encode($model->processor->username) ?> 
+                                on <?= Yii::$app->formatter->asDatetime($model->extension_processed_at) ?>
+                            </p>
+                        <?php endif; ?>
+                    </div>
+                <?php elseif ($model->extension_status === \common\models\ProgressReport::EXTENSION_REJECTED): ?>
+                    <div style="margin-top: 20px; padding: 20px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 8px;">
+                        <p style="margin: 0 0 10px 0; font-weight: 600; color: #c62828;">✗ Extension Rejected</p>
+                        <p style="margin: 0;"><strong>Rejection Reason:</strong></p>
+                        <p style="margin: 10px 0 0 0; color: #c62828;">
+                            <?= nl2br(Html::encode($model->extension_rejection_reason)) ?>
+                        </p>
+                        <?php if ($model->processor): ?>
+                            <p style="margin: 10px 0 0 0; color: #666; font-size: 13px;">
+                                Rejected by: <?= Html::encode($model->processor->username) ?> 
+                                on <?= Yii::$app->formatter->asDatetime($model->extension_processed_at) ?>
+                            </p>
+                        <?php endif; ?>
+                    </div>
+                <?php elseif ($model->extension_status === \common\models\ProgressReport::EXTENSION_PENDING): ?>
+                    <div style="margin-top: 20px; padding: 20px; background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 8px;">
+                        <p style="margin: 0; font-weight: 600; color: #e65100;">⏳ Pending Administrator Review</p>
+                        <p style="margin: 10px 0 0 0; color: #666; font-size: 13px;">
+                            This extension request is awaiting approval from the administrator.
+                        </p>
+                    </div>
+                <?php endif; ?>
 
                 <?php if ($model->documents): ?>
                     <br>

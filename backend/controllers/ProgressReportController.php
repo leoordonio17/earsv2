@@ -431,6 +431,103 @@ class ProgressReportController extends Controller
     }
 
     /**
+     * Lists all extension requests (Admin only)
+     *
+     * @return string
+     */
+    public function actionExtensionRequests()
+    {
+        // Check if user is administrator
+        if (Yii::$app->user->identity->role !== \common\models\User::ROLE_ADMINISTRATOR) {
+            throw new \yii\web\ForbiddenHttpException('You do not have permission to access this page.');
+        }
+
+        $query = ProgressReport::find()
+            ->where(['has_extension' => 1])
+            ->orderBy(['extension_status' => SORT_ASC, 'created_at' => SORT_DESC])
+            ->with(['user']);
+
+        $dataProvider = new ActiveDataProvider([
+            'query' => $query,
+            'pagination' => [
+                'pageSize' => 20,
+            ],
+        ]);
+
+        return $this->render('extension-requests', [
+            'dataProvider' => $dataProvider,
+        ]);
+    }
+
+    /**
+     * Process extension request (approve or reject) - Admin only
+     *
+     * @param int $id
+     * @return \yii\web\Response
+     */
+    public function actionProcessExtension($id)
+    {
+        // Check if user is administrator
+        if (Yii::$app->user->identity->role !== \common\models\User::ROLE_ADMINISTRATOR) {
+            throw new \yii\web\ForbiddenHttpException('You do not have permission to perform this action.');
+        }
+
+        $model = ProgressReport::findOne($id);
+        if ($model === null) {
+            throw new NotFoundHttpException('The requested report does not exist.');
+        }
+
+        if (!$model->has_extension) {
+            Yii::$app->session->setFlash('error', 'This report does not have an extension request.');
+            return $this->redirect(['view', 'id' => $id]);
+        }
+
+        if (Yii::$app->request->isPost) {
+            $action = Yii::$app->request->post('action');
+            
+            if ($action === 'approve') {
+                $approvedDate = Yii::$app->request->post('approved_date');
+                if (empty($approvedDate)) {
+                    Yii::$app->session->setFlash('error', 'Please provide an approved extension date.');
+                    return $this->redirect(['extension-requests']);
+                }
+                
+                $model->extension_status = ProgressReport::EXTENSION_APPROVED;
+                $model->extension_approved_date = $approvedDate;
+                $model->extension_rejection_reason = null;
+                $model->extension_processed_by = Yii::$app->user->id;
+                $model->extension_processed_at = time();
+                
+                if ($model->save(false)) {
+                    Yii::$app->session->setFlash('success', 'Extension request approved successfully.');
+                } else {
+                    Yii::$app->session->setFlash('error', 'Failed to approve extension request.');
+                }
+            } elseif ($action === 'reject') {
+                $rejectionReason = Yii::$app->request->post('rejection_reason');
+                if (empty($rejectionReason)) {
+                    Yii::$app->session->setFlash('error', 'Please provide a rejection reason.');
+                    return $this->redirect(['extension-requests']);
+                }
+                
+                $model->extension_status = ProgressReport::EXTENSION_REJECTED;
+                $model->extension_approved_date = null;
+                $model->extension_rejection_reason = $rejectionReason;
+                $model->extension_processed_by = Yii::$app->user->id;
+                $model->extension_processed_at = time();
+                
+                if ($model->save(false)) {
+                    Yii::$app->session->setFlash('success', 'Extension request rejected.');
+                } else {
+                    Yii::$app->session->setFlash('error', 'Failed to reject extension request.');
+                }
+            }
+        }
+
+        return $this->redirect(['extension-requests']);
+    }
+
+    /**
      * Finds the ProgressReport model based on its primary key value.
      * If the model is not found, a 404 HTTP exception will be thrown.
      * @param int $id ID
