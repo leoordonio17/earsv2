@@ -181,7 +181,7 @@ if (!Yii::$app->user->isGuest) {
                             <div class="dropdown-divider"></div>
                             <ul class="dropdown-list">
                                 <li><?= Html::a('<span class="dropdown-icon">👤</span> My Profile', ['/profile/index'], ['class' => 'dropdown-link']) ?></li>
-                                <li><?= Html::a('<span class="dropdown-icon">❓</span> Help', '#', ['class' => 'dropdown-link']) ?></li>
+                                <li><?= Html::a('<span class="dropdown-icon">❓</span> Help', ['/help/index'], ['class' => 'dropdown-link']) ?></li>
                             </ul>
                             <div class="dropdown-divider"></div>
                             <?= Html::beginForm(['/site/logout'], 'post', ['class' => 'logout-form']) ?>
