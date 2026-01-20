@@ -142,21 +142,22 @@ $this->params['breadcrumbs'][] = $this->title;
     }
 
     .report-date {
-        font-size: 24px;
-        font-weight: 700;
-        color: #967259;
+        font-size: 12px;
+        font-weight: 400;
+        color: #a0aec0;
         margin-bottom: 15px;
     }
 
     .report-project {
-        font-size: 18px;
-        font-weight: 600;
-        color: #2d3748;
-        margin-bottom: 10px;
+        font-size: 24px;
+        font-weight: 700;
+        color: #967259;
+        margin-bottom: 12px;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        line-height: 1.3;
     }
 
     .report-milestone {
@@ -333,11 +334,11 @@ $this->params['breadcrumbs'][] = $this->title;
         <div class="reports-grid">
             <?php foreach ($dataProvider->models as $model): ?>
                 <div class="report-card" onclick="window.location.href='<?= Url::to(['view', 'id' => $model->id]) ?>'">
-                    <div class="report-date">
-                        📅 <?= Yii::$app->formatter->asDate($model->report_date, 'php:F Y') ?>
-                    </div>
                     <div class="report-project">
                         <?= Html::encode($model->project_name) ?>
+                    </div>
+                    <div class="report-date">
+                        📅 <?= Yii::$app->formatter->asDate($model->report_date, 'php:F Y') ?>
                     </div>
                     <?php if ($model->milestone_name): ?>
                         <div class="report-milestone">
