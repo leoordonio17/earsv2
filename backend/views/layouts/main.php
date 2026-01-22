@@ -214,15 +214,22 @@ if (!Yii::$app->user->isGuest) {
             const mainContent = document.getElementById('mainContent');
             const body = document.body;
             
+            console.log('Toggle sidebar - Width:', window.innerWidth);
+            console.log('Sidebar before:', sidebar.classList);
+            
             // For desktop - toggle collapsed state
             if (window.innerWidth > 1024) {
                 sidebar.classList.toggle('collapsed');
                 mainContent.classList.toggle('expanded');
+                console.log('Desktop mode - collapsed:', sidebar.classList.contains('collapsed'));
             } else {
                 // For mobile - toggle show state
                 sidebar.classList.toggle('show');
                 body.classList.toggle('sidebar-open');
+                console.log('Mobile mode - show:', sidebar.classList.contains('show'));
             }
+            
+            console.log('Sidebar after:', sidebar.classList);
         }
 
         function toggleProfileDropdown() {
