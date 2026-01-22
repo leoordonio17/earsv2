@@ -12,6 +12,16 @@ return [
                 $event->sender->createCommand("SET time_zone = '+08:00'")->execute();
             },
         ],
+        'dbPmis' => [
+            'class' => \yii\db\Connection::class,
+            'dsn' => 'mysql:host=localhost:4306;dbname=pmis',
+            'username' => 'root',
+            'password' => '',
+            'charset' => 'utf8',
+            'on afterOpen' => function($event) {
+                $event->sender->createCommand("SET time_zone = '+08:00'")->execute();
+            },
+        ],
         'mailer' => [
             'class' => \yii\symfonymailer\Mailer::class,
             'viewPath' => '@common/mail',

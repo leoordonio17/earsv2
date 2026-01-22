@@ -332,7 +332,7 @@ $this->title = 'Create Project Assignment';
             <?= $form->field($model, 'project_id')->hiddenInput(['id' => 'project-id-hidden'])->label(false) ?>
             <?= $form->field($model, 'project_name')->hiddenInput(['id' => 'project-name-hidden'])->label(false) ?>
             <small style="color: #666; display: block; margin-top: 5px;">
-                <strong>Required field.</strong> Only unassigned projects are shown. Projects loaded from: <?= strpos(Yii::$app->request->hostInfo, 'localhost') !== false ? 'localhost/pmisv2' : 'projects.pids.gov.ph' ?>
+                <strong>Required field.</strong> Only unassigned projects are shown. Projects loaded from: PMIS Database
             </small>
         </div>
 

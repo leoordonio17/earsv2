@@ -264,45 +264,39 @@ class ProgressReportController extends Controller
     }
 
     /**
-     * Fetch projects from API and filter by assigned project IDs
+     * Fetch projects from PMIS database and filter by assigned project IDs
      * @param array $assignedProjectIds
      * @return array
      */
     protected function fetchProjectsFromApi($assignedProjectIds)
     {
         try {
-            $apiUrl = Yii::$app->params['apiBaseUrl'] . '/projects?api_key=' . Yii::$app->params['apiKey'];
-            
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $apiUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-            
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($httpCode === 200 && $response) {
-                $data = json_decode($response, true);
-                
-                $projects = [];
-                if (isset($data['data']) && is_array($data['data'])) {
-                    foreach ($data['data'] as $project) {
-                        // Only include projects assigned to this user
-                        if (isset($project['project_id']) && in_array($project['project_id'], $assignedProjectIds)) {
-                            $projects[$project['project_id']] = $project['project_name'] ?? 'Unnamed Project';
-                        }
-                    }
-                }
-                
-                return $projects;
+            if (empty($assignedProjectIds)) {
+                return [];
             }
+            
+            // Query directly from pmis database
+            $placeholders = implode(',', array_fill(0, count($assignedProjectIds), '?'));
+            $query = Yii::$app->dbPmis->createCommand(
+                "SELECT id, project_title FROM projects WHERE id IN ($placeholders) AND status = 10 ORDER BY project_title ASC",
+                $assignedProjectIds
+            );
+            
+            $results = $query->queryAll();
+            
+            $projects = [];
+            foreach ($results as $project) {
+                if (isset($project['id']) && isset($project['project_title'])) {
+                    $projects[$project['id']] = $project['project_title'];
+                }
+            }
+            
+            return $projects;
         } catch (\Exception $e) {
-            Yii::error('Error fetching projects from API: ' . $e->getMessage());
+            Yii::error('Error fetching projects from database: ' . $e->getMessage());
         }
         
-        // Fallback to database if API fails
+        // Fallback to project assignments if database query fails
         return ArrayHelper::map(
             ProjectAssignment::find()
                 ->where(['user_id' => Yii::$app->user->id])
@@ -313,7 +307,7 @@ class ProgressReportController extends Controller
     }
 
     /**
-     * Fetch deliverables for a project from API
+     * Fetch deliverables for a project from PMIS database
      * @param string $projectId
      * @return array JSON response
      */
@@ -322,94 +316,84 @@ class ProgressReportController extends Controller
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
 
         try {
-            $apiUrl = Yii::$app->params['apiBaseUrl'] . '/projects?api_key=' . Yii::$app->params['apiKey'];
+            // Query project information from pmis database
+            $project = Yii::$app->dbPmis->createCommand(
+                'SELECT id, project_code, project_title, project_description, project_start_date, project_end_date, 
+                        project_price_amount, contract_number
+                 FROM projects 
+                 WHERE id = :project_id',
+                [':project_id' => $projectId]
+            )->queryOne();
             
-            // Make API call using curl
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $apiUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-            
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlError = curl_error($ch);
-            curl_close($ch);
-
-            if ($httpCode === 200 && $response) {
-                $data = json_decode($response, true);
-                
-                // Log the API response for debugging
-                Yii::info('API Response: ' . print_r($data, true), __METHOD__);
-                Yii::info('Looking for project_id: ' . $projectId, __METHOD__);
-                
-                // Find the specific project by ID
-                $selectedProject = null;
-                if (isset($data['data']) && is_array($data['data'])) {
-                    foreach ($data['data'] as $project) {
-                        $projId = $project['id'] ?? null;
-                        Yii::info('Checking project ID: ' . $projId, __METHOD__);
-                        
-                        // Check if project_assignment's project_id (e.g., "PROJ001") matches API's id
-                        // Extract numeric ID from project_id like "PROJ001" -> 1
-                        if (preg_match('/\d+$/', $projectId, $matches)) {
-                            $numericId = (int)$matches[0];
-                            if ($projId == $numericId) {
-                                $selectedProject = $project;
-                                Yii::info('Found matching project by numeric ID!', __METHOD__);
-                                break;
-                            }
-                        }
-                        
-                        // Also try direct match
-                        if ($projId == $projectId) {
-                            $selectedProject = $project;
-                            Yii::info('Found matching project by direct match!', __METHOD__);
-                            break;
-                        }
-                    }
-                }
-
-                if ($selectedProject) {
-                    // Format deliverables for Select2 dropdown (API uses "deliverables" not "milestones")
-                    $deliverables = [];
-                    if (isset($selectedProject['deliverables']) && is_array($selectedProject['deliverables'])) {
-                        Yii::info('Found ' . count($selectedProject['deliverables']) . ' deliverables', __METHOD__);
-                        foreach ($selectedProject['deliverables'] as $deliverable) {
-                            $deliverables[] = [
-                                'id' => $deliverable['id'] ?? uniqid(),
-                                'text' => $deliverable['schedule_name'] ?? 'Unnamed Deliverable',
-                                'details' => $deliverable['details'] ?? '',
-                                'budget_allocation' => $deliverable['budget_allocation'] ?? '',
-                                'target_date' => $deliverable['target_date'] ?? '',
-                                'submission_date' => $deliverable['submission_date'] ?? '',
-                                'status' => $deliverable['status'] ?? '',
-                                'remarks' => $deliverable['remarks'] ?? '',
-                            ];
-                        }
-                    } else {
-                        Yii::info('No deliverables found in project. Keys: ' . implode(', ', array_keys($selectedProject)), __METHOD__);
-                    }
-
-                    return [
-                        'success' => true,
-                        'deliverables' => $deliverables,
-                        'projectData' => $selectedProject,
-                    ];
-                } else {
-                    $availableIds = isset($data['data']) ? array_map(function($p) { return $p['id'] ?? 'N/A'; }, $data['data']) : [];
-                    return [
-                        'success' => false,
-                        'message' => 'Project not found in API response. Looking for: ' . $projectId,
-                        'debug' => 'Available IDs: ' . implode(', ', $availableIds),
-                    ];
-                }
-            } else {
+            if (!$project) {
                 return [
                     'success' => false,
-                    'message' => 'API Error: HTTP ' . $httpCode . ($curlError ? ' - ' . $curlError : ''),
+                    'message' => 'Project not found for ID: ' . $projectId,
                 ];
             }
+            
+            // Query investigators from proponents table
+            $investigators = Yii::$app->dbPmis->createCommand(
+                'SELECT p.id, p.name, p.email, p.type, pi.is_director
+                 FROM proponents p
+                 INNER JOIN project_investigator pi ON p.id = pi.proponent_id
+                 WHERE pi.project_id = :project_id
+                 ORDER BY pi.is_director DESC, pi.sort_order ASC',
+                [':project_id' => $projectId]
+            )->queryAll();
+            
+            // Query deliverables directly from pmis database
+            $deliverables = Yii::$app->dbPmis->createCommand(
+                'SELECT id, schedule_name, details, budget_allocation, target_date, submission_date, status, remarks 
+                 FROM project_deliverable 
+                 WHERE project_id = :project_id 
+                 ORDER BY target_date ASC',
+                [':project_id' => $projectId]
+            )->queryAll();
+            
+            // Format deliverables for Select2 dropdown
+            $formattedDeliverables = [];
+            foreach ($deliverables as $deliverable) {
+                $formattedDeliverables[] = [
+                    'id' => $deliverable['id'] ?? uniqid(),
+                    'text' => $deliverable['schedule_name'] ?? 'Unnamed Deliverable',
+                    'details' => $deliverable['details'] ?? '',
+                    'budget_allocation' => $deliverable['budget_allocation'] ?? '',
+                    'target_date' => $deliverable['target_date'] ?? '',
+                    'submission_date' => $deliverable['submission_date'] ?? '',
+                    'status' => $deliverable['status'] ?? '',
+                    'remarks' => $deliverable['remarks'] ?? '',
+                ];
+            }
+            
+            // Format investigators
+            $formattedInvestigators = [];
+            foreach ($investigators as $investigator) {
+                $formattedInvestigators[] = [
+                    'id' => $investigator['id'],
+                    'name' => $investigator['name'],
+                    'email' => $investigator['email'],
+                    'type' => $investigator['type'],
+                    'is_director' => $investigator['is_director'],
+                ];
+            }
+            
+            // Format project data
+            $projectData = [
+                'project_name' => $project['project_title'] ?? '',
+                'project_description' => $project['project_description'] ?? '',
+                'project_start_date' => $project['project_start_date'] ?? '',
+                'project_end_date' => $project['project_end_date'] ?? '',
+                'budget' => $project['project_price_amount'] ?? '',
+                'contract_no' => $project['contract_number'] ?? '',
+                'investigators' => $formattedInvestigators,
+            ];
+
+            return [
+                'success' => true,
+                'deliverables' => $formattedDeliverables,
+                'projectData' => $projectData,
+            ];
         } catch (\Exception $e) {
             return [
                 'success' => false,

@@ -114,104 +114,42 @@ class ProjectAssignment extends \yii\db\ActiveRecord
     }
 
     /**
-     * Fetch projects from API
+     * Fetch projects from PMIS database directly
      * @param bool $excludeAssigned Whether to exclude already assigned projects
      */
     public static function fetchProjectsFromAPI($excludeAssigned = false)
     {
-        $apiKey = '2adad145b144f6d20e0904ab4bd40164cb7f49477e7867cb79b02e5e989a27aa';
-        
-        // Determine the correct API URL based on environment
-        $hostInfo = Yii::$app->request->hostInfo;
-        if (strpos($hostInfo, 'localhost') !== false) {
-            // Local development - use pmisv2 backend API
-            $url = 'http://localhost/pmisv2/backend/web/api/projects?api_key=' . $apiKey;
-        } else {
-            // Production - use projectsv2.pids.gov.ph
-            $url = 'https://projectsv2.pids.gov.ph/api/projects?api_key=' . $apiKey;
-        }
-
         try {
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            // Query directly from pmis database
+            $query = Yii::$app->dbPmis->createCommand(
+                'SELECT id, project_title FROM projects WHERE status = 10 ORDER BY project_title ASC'
+            );
             
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlError = curl_error($ch);
-            curl_close($ch);
-
-            // Log for debugging
-            if ($curlError) {
-                Yii::error('CURL Error fetching projects: ' . $curlError);
-            }
+            $results = $query->queryAll();
             
-            if ($httpCode === 200 && $response) {
-                $data = json_decode($response, true);
-                
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    // Check if response has expected structure
-                    if (isset($data['success']) && $data['success'] === true && isset($data['data'])) {
-                        $projects = [];
-                        foreach ($data['data'] as $project) {
-                            // PMIS API uses 'project_title' not 'name'
-                            if (isset($project['id']) && isset($project['project_title'])) {
-                                $projects[$project['id']] = $project['project_title'];
-                            } else if (isset($project['id']) && isset($project['name'])) {
-                                $projects[$project['id']] = $project['name'];
-                            }
-                        }
-                        if (!empty($projects)) {
-                            // Exclude assigned projects if requested
-                            if ($excludeAssigned) {
-                                $assignedIds = self::getAssignedProjectIds();
-                                foreach ($assignedIds as $assignedId) {
-                                    unset($projects[$assignedId]);
-                                }
-                            }
-                            // Sort projects alphabetically by title
-                            asort($projects);
-                            return $projects;
-                        }
-                    } else if (is_array($data)) {
-                        // Try alternative structure - array of projects directly
-                        $projects = [];
-                        foreach ($data as $project) {
-                            if (isset($project['id']) && isset($project['project_title'])) {
-                                $projects[$project['id']] = $project['project_title'];
-                            } else if (isset($project['id']) && isset($project['name'])) {
-                                $projects[$project['id']] = $project['name'];
-                            } else if (isset($project['project_id']) && isset($project['project_name'])) {
-                                $projects[$project['project_id']] = $project['project_name'];
-                            }
-                        }
-                        if (!empty($projects)) {
-                            // Exclude assigned projects if requested
-                            if ($excludeAssigned) {
-                                $assignedIds = self::getAssignedProjectIds();
-                                foreach ($assignedIds as $assignedId) {
-                                    unset($projects[$assignedId]);
-                                }
-                            }
-                            // Sort projects alphabetically by title
-                            asort($projects);
-                            return $projects;
-                        }
+            if (!empty($results)) {
+                $projects = [];
+                foreach ($results as $project) {
+                    if (isset($project['id']) && isset($project['project_title'])) {
+                        $projects[$project['id']] = $project['project_title'];
                     }
-                } else {
-                    Yii::error('JSON decode error: ' . json_last_error_msg() . ' | Response: ' . substr($response, 0, 500));
                 }
-            } else {
-                Yii::error('API returned HTTP code: ' . $httpCode . ' | URL: ' . $url . ' | Error: ' . $curlError);
+                
+                // Exclude assigned projects if requested
+                if ($excludeAssigned && !empty($projects)) {
+                    $assignedIds = self::getAssignedProjectIds();
+                    foreach ($assignedIds as $assignedId) {
+                        unset($projects[$assignedId]);
+                    }
+                }
+                
+                return $projects;
             }
             
-            // Return empty array if API fails
+            // Return empty array if no results
             return [];
         } catch (\Exception $e) {
-            Yii::error('Failed to fetch projects from API: ' . $e->getMessage());
+            Yii::error('Failed to fetch projects from database: ' . $e->getMessage());
             return [];
         }
     }
