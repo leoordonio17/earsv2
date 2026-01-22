@@ -127,8 +127,8 @@ class ProjectAssignment extends \yii\db\ActiveRecord
             // Local development - use pmisv2 backend API
             $url = 'http://localhost/pmisv2/backend/web/api/projects?api_key=' . $apiKey;
         } else {
-            // Production - use projects.pids.gov.ph
-            $url = 'https://projects.pids.gov.ph/api/projects?api_key=' . $apiKey;
+            // Production - use projectsv2.pids.gov.ph
+            $url = 'https://projectsv2.pids.gov.ph/api/projects?api_key=' . $apiKey;
         }
 
         try {
