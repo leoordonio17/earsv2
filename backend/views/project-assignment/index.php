@@ -134,6 +134,26 @@ $this->title = 'Project Assignment Management';
         border-radius: 15px;
         padding: 25px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        max-height: calc(100vh - 350px);
+        overflow-y: auto;
+    }
+    
+    .project-assignment-table-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .project-assignment-table-container::-webkit-scrollbar-track {
+        background: #f8f5f1;
+        border-radius: 4px;
+    }
+    
+    .project-assignment-table-container::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #967259 0%, #B8926A 100%);
+        border-radius: 4px;
+    }
+    
+    .project-assignment-table-container::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #B8926A 0%, #D4A574 100%);
     }
 
     .project-assignment-table {
