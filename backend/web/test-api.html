@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -137,7 +137,7 @@
 
         try {
           const response = await fetch(
-            `${API_BASE}/personnel?token=${API_TOKEN}`
+            `${API_BASE}/personnel?token=${API_TOKEN}`,
           );
           const data = await response.json();
           personnelData = data;
@@ -177,7 +177,7 @@
 
         try {
           const response = await fetch(
-            `${API_BASE}/division?token=${API_TOKEN}`
+            `${API_BASE}/division?token=${API_TOKEN}`,
           );
           const data = await response.json();
           divisionsData = data;
@@ -217,7 +217,7 @@
 
         try {
           const response = await fetch(
-            `${API_BASE}/department?token=${API_TOKEN}`
+            `${API_BASE}/department?token=${API_TOKEN}`,
           );
           const data = await response.json();
           departmentsData = data;
@@ -302,7 +302,7 @@
                         division_id: divisionId,
                       },
                       null,
-                      2
+                      2,
                     )}</pre>
                     <h3>↓ Division (ID: ${divisionId}):</h3>
                     <pre>${
@@ -314,7 +314,7 @@
                               department_id: division.department_id,
                             },
                             null,
-                            2
+                            2,
                           )
                         : "Not found"
                     }</pre>
@@ -328,7 +328,7 @@
                                 department.name || department.department_name,
                             },
                             null,
-                            2
+                            2,
                           )
                         : "Not found"
                     }</pre>
@@ -341,7 +341,7 @@
                           : null,
                       },
                       null,
-                      2
+                      2,
                     )}</pre>
                 `;
         } catch (error) {
