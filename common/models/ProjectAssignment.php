@@ -125,17 +125,17 @@ class ProjectAssignment extends \yii\db\ActiveRecord
         $hostInfo = Yii::$app->request->hostInfo;
         if (strpos($hostInfo, 'localhost') !== false) {
             // Local development - use pmisv2 backend API
-            $url = 'http://localhost/pmisv2/backend/web/api/projects?api_key=' . $apiKey;
+            $url = 'http://localhost/pmisv2/backend/web/api/projects?api_key=' . $apiKey . '&limit=5000';
         } else {
             // Production - use projectsv2.pids.gov.ph
-            $url = 'https://projectsv2.pids.gov.ph/api/projects?api_key=' . $apiKey;
+            $url = 'https://projectsv2.pids.gov.ph/api/projects?api_key=' . $apiKey . '&limit=5000';
         }
 
         try {
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 120);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             
