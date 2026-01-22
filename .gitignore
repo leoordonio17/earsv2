@@ -44,3 +44,59 @@ phpunit.phar
 
 # ignore uploaded files
 /backend/web/uploads/progress-reports/
+
+# uploaded files
+/uploads/
+/backend/web/uploads/
+/frontend/web/uploads/
+
+# runtime files and logs
+/backend/runtime/*
+/frontend/runtime/*
+/console/runtime/*
+!/backend/runtime/.gitkeep
+!/frontend/runtime/.gitkeep
+!/console/runtime/.gitkeep
+
+# debug and test log files
+*.log
+/backend/web/route_test.log
+/backend/web/temp_upload_test.log
+/backend/web/upload_debug.log
+/backend/web/debug-*.php
+/backend/web/test-*.php
+
+# local configuration files (contains sensitive data)
+/common/config/main-local.php
+/common/config/params-local.php
+/backend/config/main-local.php
+/backend/config/params-local.php
+/frontend/config/main-local.php
+/frontend/config/params-local.php
+/console/config/main-local.php
+/console/config/params-local.php
+
+# environment-specific files
+/common/config/codeception-local.php
+/backend/config/codeception-local.php
+/frontend/config/codeception-local.php
+/backend/config/test-local.php
+/frontend/config/test-local.php
+
+# session files
+/backend/web/assets/*
+/frontend/web/assets/*
+!/backend/web/assets/.gitkeep
+!/frontend/web/assets/.gitkeep
+
+# temporary files
+*.tmp
+*.swp
+*.swo
+*~
+.*.swp
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+desktop.ini
