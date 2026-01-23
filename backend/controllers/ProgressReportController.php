@@ -438,7 +438,7 @@ class ProgressReportController extends Controller
      *
      * @return string
      */
-    public function actionExtensionRequests()
+    public function actionExtensionRequests($status = null)
     {
         // Check if user is administrator
         if (Yii::$app->user->identity->role !== \common\models\User::ROLE_ADMINISTRATOR) {
@@ -450,6 +450,11 @@ class ProgressReportController extends Controller
             ->orderBy(['extension_status' => SORT_ASC, 'created_at' => SORT_DESC])
             ->with(['user']);
 
+        // Apply status filter if provided
+        if ($status !== null && in_array($status, [ProgressReport::EXTENSION_PENDING, ProgressReport::EXTENSION_APPROVED, ProgressReport::EXTENSION_REJECTED])) {
+            $query->andWhere(['extension_status' => $status]);
+        }
+
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
             'pagination' => [
@@ -459,6 +464,7 @@ class ProgressReportController extends Controller
 
         return $this->render('extension-requests', [
             'dataProvider' => $dataProvider,
+            'statusFilter' => $status,
         ]);
     }
 

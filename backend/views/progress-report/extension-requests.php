@@ -6,6 +6,7 @@ use kartik\date\DatePicker;
 
 /* @var $this yii\web\View */
 /* @var $dataProvider yii\data\ActiveDataProvider */
+/* @var $statusFilter string|null */
 
 $this->title = 'Extension Requests';
 ?>
@@ -426,12 +427,85 @@ $this->title = 'Extension Requests';
         background: #f8f5f1;
         border-color: #967259;
     }
+
+    .filter-section {
+        background: white;
+        border-radius: 12px;
+        padding: 20px 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .filter-label {
+        font-weight: 600;
+        color: #2d1f13;
+        font-size: 14px;
+    }
+
+    .filter-select {
+        padding: 10px 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        background: white;
+        color: #2d1f13;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 200px;
+    }
+
+    .filter-select:focus {
+        border-color: #967259;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(150, 114, 89, 0.1);
+    }
+
+    .filter-select:hover {
+        border-color: #B8926A;
+    }
+
+    .btn-reset-filter {
+        padding: 10px 20px;
+        background: #e0e0e0;
+        color: #666;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-reset-filter:hover {
+        background: #d0d0d0;
+        color: #444;
+        text-decoration: none;
+    }
 </style>
 
 <div class="extension-container">
     <div class="extension-header">
         <h1 class="extension-title">📋 Extension Requests</h1>
         <?= Html::a('← Back to Reports', ['index'], ['class' => 'btn-back']) ?>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <span class="filter-label">🔍 Filter by Status:</span>
+        <select class="filter-select" id="statusFilter" onchange="applyFilter()">
+            <option value="" <?= $statusFilter === null ? 'selected' : '' ?>>All Statuses</option>
+            <option value="<?= \common\models\ProgressReport::EXTENSION_PENDING ?>" <?= $statusFilter === \common\models\ProgressReport::EXTENSION_PENDING ? 'selected' : '' ?>>Pending</option>
+            <option value="<?= \common\models\ProgressReport::EXTENSION_APPROVED ?>" <?= $statusFilter === \common\models\ProgressReport::EXTENSION_APPROVED ? 'selected' : '' ?>>Approved</option>
+            <option value="<?= \common\models\ProgressReport::EXTENSION_REJECTED ?>" <?= $statusFilter === \common\models\ProgressReport::EXTENSION_REJECTED ? 'selected' : '' ?>>Rejected</option>
+        </select>
+        <?php if ($statusFilter !== null): ?>
+            <?= Html::a('✕ Clear Filter', ['extension-requests'], ['class' => 'btn-reset-filter']) ?>
+        <?php endif; ?>
     </div>
 
     <div class="extensions-table-wrapper">
@@ -604,6 +678,16 @@ $this->title = 'Extension Requests';
 </div>
 
 <script>
+function applyFilter() {
+    const status = document.getElementById('statusFilter').value;
+    const url = '<?= \yii\helpers\Url::to(['extension-requests']) ?>';
+    if (status) {
+        window.location.href = url + '?status=' + encodeURIComponent(status);
+    } else {
+        window.location.href = url;
+    }
+}
+
 function openApproveModal(id, proposedDate) {
     document.getElementById('approve_report_id').value = id;
     document.getElementById('approved_date').value = proposedDate;
