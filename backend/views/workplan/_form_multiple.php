@@ -287,6 +287,11 @@ const taskTypes = {$taskTypesJson};
 const projectStages = {$projectStagesJson};
 const submittedData = {$submittedDataJson};
 
+// Make removeRow globally accessible
+window.removeRow = function(rowNum) {
+    $('.workplan-row[data-row="' + rowNum + '"]').remove();
+};
+
 function createProjectOptions() {
     let options = '<option value="">Select a project...</option>';
     for (let id in userProjects) {
@@ -317,7 +322,7 @@ function addWorkplanRow() {
         <div class="workplan-row" data-row="\${rowCount}">
             <div class="row-header">
                 <div class="row-number">Workplan #\${rowCount}</div>
-                \${rowCount > 1 ? '<button type="button" class="btn-remove-row" onclick="removeRow(\${rowCount})">🗑️ Remove</button>' : ''}
+                <button type="button" class="btn-remove-row" onclick="removeRow(\${rowCount})">🗑️ Remove</button>
             </div>
             
             <div class="form-row-grid">
@@ -374,10 +379,6 @@ function addWorkplanRow() {
     
     $('#workplan-rows').append(rowHtml);
     attachEventHandlers(rowCount);
-}
-
-function removeRow(rowNum) {
-    $('.workplan-row[data-row="' + rowNum + '"]').remove();
 }
 
 function attachEventHandlers(rowNum) {
