@@ -100,6 +100,30 @@ $this->title = $group->title;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     }
 
+    .table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        margin-top: 20px;
+    }
+
+    .table-wrapper::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .table-wrapper::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    .table-wrapper::-webkit-scrollbar-thumb {
+        background: #967259;
+        border-radius: 10px;
+    }
+
+    .table-wrapper::-webkit-scrollbar-thumb:hover {
+        background: #7d5e47;
+    }
+
     .section-title {
         font-size: 22px;
         font-weight: 600;
@@ -111,6 +135,7 @@ $this->title = $group->title;
 
     .table {
         width: 100%;
+        min-width: 1000px;
         border-collapse: collapse;
     }
 
@@ -130,6 +155,13 @@ $this->title = $group->title;
         color: #2D1F13;
     }
 
+    .table td.project-cell {
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+        max-width: 200px;
+    }
+
     .table tr:hover {
         background: #f8f5f1;
     }
@@ -145,6 +177,11 @@ $this->title = $group->title;
     .badge-project {
         background: #e3f2fd;
         color: #1976d2;
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+        display: inline-block;
+        max-width: 100%;
     }
 
     .badge-task {
@@ -170,18 +207,6 @@ $this->title = $group->title;
 </style>
 
 <div class="container">
-    <?php if (Yii::$app->session->hasFlash('success')): ?>
-        <div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #c3e6cb;">
-            ✓ <?= Yii::$app->session->getFlash('success') ?>
-        </div>
-    <?php endif; ?>
-
-    <?php if (Yii::$app->session->hasFlash('error')): ?>
-        <div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #f5c6cb;">
-            ✗ <?= Yii::$app->session->getFlash('error') ?>
-        </div>
-    <?php endif; ?>
-
     <div class="group-header">
         <div class="header-top">
             <div class="group-title">
@@ -233,27 +258,28 @@ $this->title = $group->title;
         </div>
 
         <?php if ($dataProvider->getTotalCount() > 0): ?>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th style="width: 5%;">#</th>
-                        <th style="width: 20%;">Project</th>
-                        <th style="width: 15%;">Task Type</th>
-                        <th style="width: 15%;">Task Category</th>
-                        <th style="width: 10%;">Start Date</th>
-                        <th style="width: 10%;">End Date</th>
-                        <th style="width: 20%;">Workplan</th>
-                        <th style="width: 10%;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">#</th>
+                            <th style="width: 20%;">Project</th>
+                            <th style="width: 15%;">Task Type</th>
+                            <th style="width: 15%;">Task Category</th>
+                            <th style="width: 10%;">Start Date</th>
+                            <th style="width: 10%;">End Date</th>
+                            <th style="width: 20%;">Workplan</th>
+                            <th style="width: 10%;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                     <?php 
                     $index = 1;
                     foreach ($dataProvider->models as $workplan): 
                     ?>
                         <tr>
                             <td><strong><?= $index++ ?></strong></td>
-                            <td>
+                            <td class="project-cell">
                                 <span class="badge badge-project">
                                     <?= Html::encode($workplan->project_name) ?>
                                 </span>
@@ -310,6 +336,7 @@ $this->title = $group->title;
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            </div>
         <?php else: ?>
             <div class="empty-state">
                 <div class="empty-state-icon">📝</div>

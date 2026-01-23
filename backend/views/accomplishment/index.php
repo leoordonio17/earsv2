@@ -98,11 +98,21 @@ $this->title = 'Accomplishments';
     .badge-project {
         background: #e3f2fd;
         color: #1976d2;
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+        display: inline-block;
+        max-width: 100%;
     }
 
     .badge-group {
         background: #f3e5f5;
         color: #7b1fa2;
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+        display: inline-block;
+        max-width: 100%;
     }
 
     .workplan-footer {

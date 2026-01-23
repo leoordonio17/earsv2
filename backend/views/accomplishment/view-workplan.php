@@ -99,6 +99,11 @@ $this->title = 'Accomplishments';
     .badge-project {
         background: #e3f2fd;
         color: #1976d2;
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+        display: inline-block;
+        max-width: 100%;
     }
 
     .accomplishment-section {

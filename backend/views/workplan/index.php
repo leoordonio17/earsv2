@@ -201,18 +201,6 @@ $this->title = 'Workplan Management';
         <?= Html::a('➕ Create New Workplan Group', ['create'], ['class' => 'btn-create']) ?>
     </div>
 
-    <?php if (Yii::$app->session->hasFlash('success')): ?>
-        <div class="alert alert-success" style="margin-bottom: 20px;">
-            <?= Yii::$app->session->getFlash('success') ?>
-        </div>
-    <?php endif; ?>
-
-    <?php if (Yii::$app->session->hasFlash('error')): ?>
-        <div class="alert alert-danger" style="margin-bottom: 20px;">
-            <?= Yii::$app->session->getFlash('error') ?>
-        </div>
-    <?php endif; ?>
-
     <div class="search-box">
         <form method="get" action="<?= \yii\helpers\Url::to(['workplan/index']) ?>">
             <input type="text" name="search" placeholder="🔍 Search workplan groups..." 

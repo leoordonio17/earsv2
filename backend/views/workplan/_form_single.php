@@ -189,11 +189,10 @@ function loadTaskCategories(taskTypeId) {
     }
 
     $.ajax({
-        url: '<?= \yii\helpers\Url::to(['workplan/get-task-categories']) ?>',
-        type: 'POST',
+        url: '<?= \yii\helpers\Url::to(['workplan/get-categories']) ?>',
+        type: 'GET',
         data: {
-            task_type_id: taskTypeId,
-            _csrf: '<?= Yii::$app->request->csrfToken ?>'
+            task_type_id: taskTypeId
         },
         dataType: 'json',
         success: function(response) {

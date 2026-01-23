@@ -289,8 +289,56 @@ const submittedData = {$submittedDataJson};
 
 // Make removeRow globally accessible
 window.removeRow = function(rowNum) {
+    const totalRows = $('.workplan-row').length;
+    
+    // Prevent removal if only 1 row remains
+    if (totalRows <= 1) {
+        alert('At least one workplan must remain. You cannot remove the last workplan.');
+        return;
+    }
+    
     $('.workplan-row[data-row="' + rowNum + '"]').remove();
+    
+    // Renumber all remaining rows
+    renumberRows();
 };
+
+function renumberRows() {
+    $('.workplan-row').each(function(index) {
+        const newRowNum = index + 1;
+        const oldRowNum = $(this).attr('data-row');
+        
+        // Update data-row attribute
+        $(this).attr('data-row', newRowNum);
+        
+        // Update display number
+        $(this).find('.row-number').text('Workplan #' + newRowNum);
+        
+        // Update all form field names
+        $(this).find('select[name^="Workplan["]').each(function() {
+            const name = $(this).attr('name');
+            const newName = name.replace(/Workplan\[\d+\]/, 'Workplan[' + newRowNum + ']');
+            $(this).attr('name', newName);
+        });
+        
+        $(this).find('input[name^="Workplan["]').each(function() {
+            const name = $(this).attr('name');
+            const newName = name.replace(/Workplan\[\d+\]/, 'Workplan[' + newRowNum + ']');
+            $(this).attr('name', newName);
+        });
+        
+        $(this).find('textarea[name^="Workplan["]').each(function() {
+            const name = $(this).attr('name');
+            const newName = name.replace(/Workplan\[\d+\]/, 'Workplan[' + newRowNum + ']');
+            $(this).attr('name', newName);
+        });
+        
+        // Update data-row attributes on selects
+        $(this).find('.project-select, .task-type-select, .task-category-select, .project-name-hidden').each(function() {
+            $(this).attr('data-row', newRowNum);
+        });
+    });
+}
 
 function createProjectOptions() {
     let options = '<option value="">Select a project...</option>';
@@ -379,6 +427,9 @@ function addWorkplanRow() {
     
     $('#workplan-rows').append(rowHtml);
     attachEventHandlers(rowCount);
+    
+    // Renumber all rows after adding
+    renumberRows();
 }
 
 function attachEventHandlers(rowNum) {
