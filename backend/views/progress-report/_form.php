@@ -339,7 +339,7 @@ use kartik\date\DatePicker;
                 <label>📎 Attached Documents:</label>
                 <?php foreach ($model->getDocumentsArray() as $doc): ?>
                     <div class="file-item">
-                        <a href="<?= $doc ?>" target="_blank">
+                        <a href="<?= Yii::$app->urlManager->baseUrl . $doc ?>" target="_blank">
                             📄 <?= basename($doc) ?>
                         </a>
                         <?= Html::a('🗑️ Delete', ['delete-document', 'id' => $model->id, 'doc' => $doc], [

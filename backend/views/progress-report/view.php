@@ -465,7 +465,7 @@ $this->params['breadcrumbs'][] = $this->title;
                     <strong>📎 Attached Documents:</strong><br>
                     <?php foreach ($model->getDocumentsArray() as $doc): ?>
                         <div class="file-item">
-                            <a href="<?= Yii::$app->request->baseUrl . '/' . $doc ?>" target="_blank">
+                            <a href="<?= Yii::$app->urlManager->baseUrl . $doc ?>" target="_blank">
                                 📄 <?= basename($doc) ?>
                             </a>
                         </div>
