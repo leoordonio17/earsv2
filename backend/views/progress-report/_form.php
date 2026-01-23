@@ -287,6 +287,11 @@ use kartik\date\DatePicker;
             </table>
         <?php endif; ?>
     </div>
+    <?= $form->field($model, 'remarks')->textarea([
+        'rows' => 6,
+        'placeholder' => 'Enter any general remarks or notes about this progress report...',
+        'style' => 'resize: vertical;'
+    ])->hint('Optional: Add any additional notes, observations, or comments about this progress report') ?>
 </div>
 
 <div class="form-section">

@@ -264,6 +264,11 @@ $this->params['breadcrumbs'][] = $this->title;
                     'format' => 'raw',
                 ],
                 [
+                    'attribute' => 'remarks',
+                    'format' => 'ntext',
+                    'value' => $model->remarks ?: 'No remarks provided',
+                ],
+                [
                     'label' => 'Created By',
                     'value' => function($model) {
                         if (Yii::$app->user->identity->role === \common\models\User::ROLE_ADMINISTRATOR) {

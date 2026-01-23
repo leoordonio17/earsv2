@@ -19,6 +19,7 @@ use yii\helpers\Json;
  * @property string|null $milestone_name Milestone name from API
  * @property string|null $deliverables_data JSON data of deliverables from API
  * @property string $status Completed, On-going, Delayed
+ * @property string|null $remarks General remarks or notes
  * @property int $has_extension Yes=1, No=0
  * @property string|null $extension_date Date proposed for extension
  * @property string|null $extension_justification Justification of extension
@@ -67,7 +68,7 @@ class ProgressReport extends \yii\db\ActiveRecord
             [['user_id', 'report_date', 'project_id', 'project_name', 'status'], 'required'],
             [['user_id', 'has_extension', 'extension_processed_by', 'extension_processed_at'], 'integer'],
             [['report_date', 'extension_date', 'extension_approved_date'], 'safe'],
-            [['project_data', 'deliverables_data', 'extension_justification', 'extension_rejection_reason', 'documents'], 'string'],
+            [['project_data', 'deliverables_data', 'extension_justification', 'extension_rejection_reason', 'documents', 'remarks'], 'string'],
             [['project_id', 'milestone_id'], 'string', 'max' => 50],
             [['project_name', 'milestone_name'], 'string', 'max' => 255],
             [['status'], 'string', 'max' => 20],
@@ -102,6 +103,7 @@ class ProgressReport extends \yii\db\ActiveRecord
             'milestone_name' => 'Milestone Name',
             'deliverables_data' => 'Deliverables',
             'status' => 'Status',
+            'remarks' => 'Remarks',
             'has_extension' => 'Extension Required',
             'extension_date' => 'Proposed Extension Date',
             'extension_justification' => 'Justification for Extension',            'extension_status' => 'Extension Status',
