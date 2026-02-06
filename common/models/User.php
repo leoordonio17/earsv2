@@ -22,11 +22,19 @@ use yii\web\IdentityInterface;
  * @property string $position
  * @property string $department
  * @property string $profile_picture
+ * @property string $digital_signature
+ * @property integer $reviewer_id
+ * @property string $reviewer_designation
+ * @property integer $approver_id
+ * @property string $approver_designation
  * @property string $auth_key
  * @property integer $status
  * @property integer $created_at
  * @property integer $updated_at
  * @property string $password write-only password
+ *
+ * @property User $reviewer
+ * @property User $approver
  */
 class User extends ActiveRecord implements IdentityInterface
 {
@@ -66,9 +74,25 @@ class User extends ActiveRecord implements IdentityInterface
             ['status', 'in', 'range' => [self::STATUS_ACTIVE, self::STATUS_INACTIVE, self::STATUS_DELETED]],
             ['role', 'default', 'value' => self::ROLE_PERSONNEL],
             ['role', 'in', 'range' => [self::ROLE_PERSONNEL, self::ROLE_ADMINISTRATOR]],
-            [['pids_id'], 'integer'],
-            [['full_name', 'position', 'department', 'division', 'profile_picture'], 'string', 'max' => 255],
+            [['pids_id', 'reviewer_id', 'approver_id'], 'integer'],
+            [['full_name', 'position', 'department', 'division', 'profile_picture', 'digital_signature', 'reviewer_designation', 'approver_designation'], 'string', 'max' => 255],
         ];
+    }
+
+    /**
+     * Get reviewer
+     */
+    public function getReviewer()
+    {
+        return $this->hasOne(User::class, ['id' => 'reviewer_id']);
+    }
+
+    /**
+     * Get approver
+     */
+    public function getApprover()
+    {
+        return $this->hasOne(User::class, ['id' => 'approver_id']);
     }
 
     /**

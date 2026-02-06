@@ -156,4 +156,163 @@ class ProfileController extends Controller
             ];
         }
     }
+
+    /**
+     * Upload digital signature
+     * 
+     * @return \yii\web\Response
+     */
+    public function actionUploadSignature()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        $user = Yii::$app->user->identity;
+        $file = \yii\web\UploadedFile::getInstanceByName('signature');
+
+        if (!$file) {
+            return [
+                'success' => false,
+                'message' => 'No file uploaded',
+            ];
+        }
+
+        // Validate file type
+        $allowedExtensions = ['png', 'jpg', 'jpeg'];
+        $extension = strtolower($file->extension);
+        
+        if (!in_array($extension, $allowedExtensions)) {
+            return [
+                'success' => false,
+                'message' => 'Only PNG and JPG files are allowed',
+            ];
+        }
+
+        // Validate file size (max 2MB)
+        if ($file->size > 2 * 1024 * 1024) {
+            return [
+                'success' => false,
+                'message' => 'File size must not exceed 2MB',
+            ];
+        }
+
+        // Create upload directory if it doesn't exist
+        $uploadDir = Yii::getAlias('@backend/web/uploads/signatures/');
+        if (!\yii\helpers\FileHelper::createDirectory($uploadDir)) {
+            return [
+                'success' => false,
+                'message' => 'Failed to create upload directory',
+            ];
+        }
+
+        // Delete old signature if exists
+        if ($user->digital_signature) {
+            $oldFile = Yii::getAlias('@backend/web') . $user->digital_signature;
+            if (file_exists($oldFile)) {
+                @unlink($oldFile);
+            }
+        }
+
+        // Generate unique filename
+        $filename = 'signature_' . $user->id . '_' . time() . '.' . $extension;
+        $filePath = $uploadDir . $filename;
+
+        // Save file
+        if ($file->saveAs($filePath)) {
+            $user->digital_signature = '/uploads/signatures/' . $filename;
+            
+            if ($user->save(false)) {
+                return [
+                    'success' => true,
+                    'message' => 'Signature uploaded successfully',
+                    'signature_url' => $user->digital_signature,
+                ];
+            }
+        }
+
+        return [
+            'success' => false,
+            'message' => 'Failed to save signature',
+        ];
+    }
+
+    /**
+     * Update reviewer and approver
+     * 
+     * @return \yii\web\Response
+     */
+    public function actionUpdateSignatureSettings()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        $user = Yii::$app->user->identity;
+        $post = Yii::$app->request->post();
+
+        $reviewerId = $post['reviewer_id'] ?? null;
+        $approverId = $post['approver_id'] ?? null;
+
+        // Auto-populate designations from selected users' positions
+        if ($reviewerId) {
+            $reviewer = \common\models\User::findOne($reviewerId);
+            $user->reviewer_id = $reviewerId;
+            $user->reviewer_designation = $reviewer ? $reviewer->position : null;
+        } else {
+            $user->reviewer_id = null;
+            $user->reviewer_designation = null;
+        }
+
+        if ($approverId) {
+            $approver = \common\models\User::findOne($approverId);
+            $user->approver_id = $approverId;
+            $user->approver_designation = $approver ? $approver->position : null;
+        } else {
+            $user->approver_id = null;
+            $user->approver_designation = null;
+        }
+
+        if ($user->save(false)) {
+            return [
+                'success' => true,
+                'message' => 'Signature settings updated successfully',
+            ];
+        }
+
+        return [
+            'success' => false,
+            'message' => 'Failed to update signature settings',
+            'errors' => $user->errors,
+        ];
+    }
+
+    /**
+     * Delete digital signature
+     * 
+     * @return \yii\web\Response
+     */
+    public function actionDeleteSignature()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        $user = Yii::$app->user->identity;
+
+        if ($user->digital_signature) {
+            $oldFile = Yii::getAlias('@backend/web') . $user->digital_signature;
+            if (file_exists($oldFile)) {
+                @unlink($oldFile);
+            }
+
+            $user->digital_signature = null;
+            
+            if ($user->save(false)) {
+                return [
+                    'success' => true,
+                    'message' => 'Signature deleted successfully',
+                ];
+            }
+        }
+
+        return [
+            'success' => false,
+            'message' => 'No signature to delete or failed to delete',
+        ];
+    }
 }

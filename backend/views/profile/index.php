@@ -117,6 +117,137 @@ $initial = strtoupper(substr($fullName, 0, 1));
                     </a>
                 </div>
             </div>
+
+            <!-- Digital Signature Section -->
+            <div class="signature-section">
+                <h3 class="section-title">✍️ Digital Signature</h3>
+                
+                <?php
+                // Prepare user positions mapping for JavaScript
+                use kartik\select2\Select2;
+                use yii\helpers\ArrayHelper;
+                use common\models\User;
+                
+                $users = User::find()
+                    ->where(['status' => User::STATUS_ACTIVE])
+                    ->andWhere(['<>', 'id', $user->id])
+                    ->orderBy(['full_name' => SORT_ASC])
+                    ->all();
+                
+                $userList = ArrayHelper::map($users, 'id', 'full_name');
+                $userPositions = ArrayHelper::map($users, 'id', 'position');
+                ?>
+                
+                <script>
+                // Make userPositions available globally for Select2 events
+                var userPositions = <?= json_encode($userPositions) ?>;
+                </script>
+                
+                <div class="signature-upload-area">
+                    <label class="signature-label">Upload Signature (PNG/JPG, max 2MB)</label>
+                    <?php if ($user->digital_signature): ?>
+                        <div class="current-signature">
+                            <img src="<?= Yii::getAlias('@web') . Html::encode($user->digital_signature) ?>" alt="Digital Signature" class="signature-preview">
+                            <button class="btn-delete-signature" onclick="deleteSignature()">🗑️ Remove Signature</button>
+                        </div>
+                    <?php else: ?>
+                        <p class="no-signature-text">No signature uploaded yet</p>
+                    <?php endif; ?>
+                    
+                    <div class="upload-controls">
+                        <input type="file" id="signatureFile" accept=".png,.jpg,.jpeg" style="display:none;" onchange="uploadSignature()">
+                        <button class="btn-upload-signature" onclick="document.getElementById('signatureFile').click()">
+                            📤 <?= $user->digital_signature ? 'Change Signature' : 'Upload Signature' ?>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="signature-settings-form">
+                    <h4 class="subsection-title">Approval Settings</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Reviewer</label>
+                            <?php
+                            echo Select2::widget([
+                                'name' => 'reviewer_id',
+                                'value' => $user->reviewer_id,
+                                'data' => $userList,
+                                'options' => [
+                                    'placeholder' => 'Select reviewer...',
+                                    'id' => 'reviewer-id',
+                                    'class' => 'form-control',
+                                ],
+                                'pluginOptions' => [
+                                    'allowClear' => true,
+                                ],
+                                'pluginEvents' => [
+                                    'change' => 'function(e) { 
+                                        var reviewerId = $(this).val();
+                                        var designation = reviewerId && userPositions[reviewerId] ? userPositions[reviewerId] : "";
+                                        $("#reviewer-designation").val(designation);
+                                    }',
+                                    'select2:clear' => 'function(e) { 
+                                        $("#reviewer-designation").val("");
+                                    }',
+                                ],
+                            ]);
+                            ?>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Reviewer Designation</label>
+                            <input type="text" id="reviewer-designation" class="form-control" 
+                                   value="<?= Html::encode($user->reviewer_designation ?? '') ?>" 
+                                   placeholder="Auto-populated from reviewer's position"
+                                   readonly>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Approver</label>
+                            <?php
+                            echo Select2::widget([
+                                'name' => 'approver_id',
+                                'value' => $user->approver_id,
+                                'data' => $userList,
+                                'options' => [
+                                    'placeholder' => 'Select approver...',
+                                    'id' => 'approver-id',
+                                    'class' => 'form-control',
+                                ],
+                                'pluginOptions' => [
+                                    'allowClear' => true,
+                                ],
+                                'pluginEvents' => [
+                                    'change' => 'function(e) { 
+                                        var approverId = $(this).val();
+                                        var designation = approverId && userPositions[approverId] ? userPositions[approverId] : "";
+                                        $("#approver-designation").val(designation);
+                                    }',
+                                    'select2:clear' => 'function(e) { 
+                                        $("#approver-designation").val("");
+                                    }',
+                                ],
+                            ]);
+                            ?>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Approver Designation</label>
+                            <input type="text" id="approver-designation" class="form-control" 
+                                   value="<?= Html::encode($user->approver_designation ?? '') ?>" 
+                                   placeholder="Auto-populated from approver's position"
+                                   readonly>
+                        </div>
+                    </div>
+
+                    <button class="btn-save-settings" onclick="saveSignatureSettings()">
+                        💾 Save Approval Settings
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -377,6 +508,165 @@ $initial = strtoupper(substr($fullName, 0, 1));
     font-size: 12px;
 }
 
+.external-icon {
+    font-size: 14px;
+}
+
+/* Signature Section */
+.signature-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin-top: 20px;
+}
+
+.signature-upload-area {
+    padding: 25px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.signature-label {
+    display: block;
+    font-weight: 600;
+    color: #2D1F13;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.current-signature {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.signature-preview {
+    max-width: 300px;
+    max-height: 150px;
+    border: 2px solid #dee2e6;
+    border-radius: 4px;
+    background: white;
+    padding: 10px;
+}
+
+.btn-delete-signature {
+    margin-top: 15px;
+    padding: 8px 16px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-delete-signature:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+.no-signature-text {
+    text-align: center;
+    color: #6c757d;
+    padding: 20px;
+    font-style: italic;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.upload-controls {
+    text-align: center;
+}
+
+.btn-upload-signature {
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #967259 0%, #B8926A 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-upload-signature:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(150, 114, 89, 0.3);
+}
+
+.signature-settings-form {
+    padding: 25px;
+}
+
+.subsection-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2D1F13;
+    margin-bottom: 20px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.form-control {
+    padding: 10px 14px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #967259;
+    box-shadow: 0 0 0 3px rgba(150, 114, 89, 0.1);
+}
+
+.form-control:read-only {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
+.btn-save-settings {
+    padding: 12px 30px;
+    background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+.btn-save-settings:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
 @media (max-width: 768px) {
     .profile-page {
         padding: 20px 15px;
@@ -403,6 +693,14 @@ $initial = strtoupper(substr($fullName, 0, 1));
         margin: 15px 20px 20px;
         flex-direction: column;
         text-align: center;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .signature-preview {
+        max-width: 100%;
     }
 }
 </style>
@@ -495,5 +793,132 @@ function showMessage(type, message) {
     setTimeout(() => {
         msgDiv.remove();
     }, 5000);
+}
+
+function uploadSignature() {
+    const fileInput = document.getElementById('signatureFile');
+    const file = fileInput.files[0];
+    
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('signature', file);
+    
+    // Show loading state
+    const uploadBtn = document.querySelector('.btn-upload-signature');
+    const originalText = uploadBtn.innerHTML;
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '⏳ Uploading...';
+    
+    fetch('<?= \yii\helpers\Url::to(['profile/upload-signature']) ?>', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>'
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showMessage('success', result.message);
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showMessage('danger', result.message);
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        showMessage('danger', 'An error occurred while uploading signature');
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = originalText;
+    });
+}
+
+function deleteSignature() {
+    if (!confirm('Are you sure you want to delete your signature?')) {
+        return;
+    }
+    
+    fetch('<?= \yii\helpers\Url::to(['profile/delete-signature']) ?>', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>'
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showMessage('success', result.message);
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showMessage('danger', result.message);
+        }
+    })
+    .catch(error => {
+        showMessage('danger', 'An error occurred while deleting signature');
+    });
+}
+
+// Populate designations on page load
+$(document).ready(function() {
+    const reviewerId = $('#reviewer-id').val();
+    if (reviewerId && userPositions[reviewerId]) {
+        $('#reviewer-designation').val(userPositions[reviewerId]);
+    }
+    
+    const approverId = $('#approver-id').val();
+    if (approverId && userPositions[approverId]) {
+        $('#approver-designation').val(userPositions[approverId]);
+    }
+});
+
+function saveSignatureSettings() {
+    const reviewerId = document.getElementById('reviewer-id').value;
+    const reviewerDesignation = document.getElementById('reviewer-designation').value;
+    const approverId = document.getElementById('approver-id').value;
+    const approverDesignation = document.getElementById('approver-designation').value;
+    
+    const formData = new FormData();
+    formData.append('reviewer_id', reviewerId);
+    formData.append('reviewer_designation', reviewerDesignation);
+    formData.append('approver_id', approverId);
+    formData.append('approver_designation', approverDesignation);
+    
+    const saveBtn = document.querySelector('.btn-save-settings');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '⏳ Saving...';
+    
+    fetch('<?= \yii\helpers\Url::to(['profile/update-signature-settings']) ?>', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>'
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showMessage('success', result.message);
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showMessage('danger', result.message || 'Failed to save settings');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        showMessage('danger', 'An error occurred while saving settings');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
 }
 </script>
