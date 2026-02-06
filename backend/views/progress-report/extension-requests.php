@@ -7,6 +7,8 @@ use kartik\date\DatePicker;
 /* @var $this yii\web\View */
 /* @var $dataProvider yii\data\ActiveDataProvider */
 /* @var $statusFilter string|null */
+/* @var $monthFilter int|null */
+/* @var $yearFilter int|null */
 
 $this->title = 'Extension Requests';
 ?>
@@ -496,15 +498,42 @@ $this->title = 'Extension Requests';
 
     <!-- Filter Section -->
     <div class="filter-section">
-        <span class="filter-label">🔍 Filter by Status:</span>
+        <span class="filter-label">🔍 Filters:</span>
+        
         <select class="filter-select" id="statusFilter" onchange="applyFilter()">
             <option value="" <?= $statusFilter === null ? 'selected' : '' ?>>All Statuses</option>
             <option value="<?= \common\models\ProgressReport::EXTENSION_PENDING ?>" <?= $statusFilter === \common\models\ProgressReport::EXTENSION_PENDING ? 'selected' : '' ?>>Pending</option>
             <option value="<?= \common\models\ProgressReport::EXTENSION_APPROVED ?>" <?= $statusFilter === \common\models\ProgressReport::EXTENSION_APPROVED ? 'selected' : '' ?>>Approved</option>
             <option value="<?= \common\models\ProgressReport::EXTENSION_REJECTED ?>" <?= $statusFilter === \common\models\ProgressReport::EXTENSION_REJECTED ? 'selected' : '' ?>>Rejected</option>
         </select>
-        <?php if ($statusFilter !== null): ?>
-            <?= Html::a('✕ Clear Filter', ['extension-requests'], ['class' => 'btn-reset-filter']) ?>
+
+        <select class="filter-select" id="monthFilter" onchange="applyFilter()">
+            <option value="" <?= $monthFilter === null ? 'selected' : '' ?>>All Months</option>
+            <option value="1" <?= $monthFilter == 1 ? 'selected' : '' ?>>January</option>
+            <option value="2" <?= $monthFilter == 2 ? 'selected' : '' ?>>February</option>
+            <option value="3" <?= $monthFilter == 3 ? 'selected' : '' ?>>March</option>
+            <option value="4" <?= $monthFilter == 4 ? 'selected' : '' ?>>April</option>
+            <option value="5" <?= $monthFilter == 5 ? 'selected' : '' ?>>May</option>
+            <option value="6" <?= $monthFilter == 6 ? 'selected' : '' ?>>June</option>
+            <option value="7" <?= $monthFilter == 7 ? 'selected' : '' ?>>July</option>
+            <option value="8" <?= $monthFilter == 8 ? 'selected' : '' ?>>August</option>
+            <option value="9" <?= $monthFilter == 9 ? 'selected' : '' ?>>September</option>
+            <option value="10" <?= $monthFilter == 10 ? 'selected' : '' ?>>October</option>
+            <option value="11" <?= $monthFilter == 11 ? 'selected' : '' ?>>November</option>
+            <option value="12" <?= $monthFilter == 12 ? 'selected' : '' ?>>December</option>
+        </select>
+
+        <select class="filter-select" id="yearFilter" onchange="applyFilter()">
+            <option value="" <?= $yearFilter === null ? 'selected' : '' ?>>All Years</option>
+            <?php
+            $currentYear = date('Y');
+            for ($y = $currentYear; $y >= $currentYear - 5; $y--): ?>
+                <option value="<?= $y ?>" <?= $yearFilter == $y ? 'selected' : '' ?>><?= $y ?></option>
+            <?php endfor; ?>
+        </select>
+        
+        <?php if ($statusFilter !== null || $monthFilter !== null || $yearFilter !== null): ?>
+            <?= Html::a('✕ Clear All Filters', ['extension-requests'], ['class' => 'btn-reset-filter']) ?>
         <?php endif; ?>
     </div>
 
@@ -680,9 +709,17 @@ $this->title = 'Extension Requests';
 <script>
 function applyFilter() {
     const status = document.getElementById('statusFilter').value;
+    const month = document.getElementById('monthFilter').value;
+    const year = document.getElementById('yearFilter').value;
     const url = '<?= \yii\helpers\Url::to(['extension-requests']) ?>';
-    if (status) {
-        window.location.href = url + '?status=' + encodeURIComponent(status);
+    
+    const params = [];
+    if (status) params.push('status=' + encodeURIComponent(status));
+    if (month) params.push('month=' + encodeURIComponent(month));
+    if (year) params.push('year=' + encodeURIComponent(year));
+    
+    if (params.length > 0) {
+        window.location.href = url + '?' + params.join('&');
     } else {
         window.location.href = url;
     }

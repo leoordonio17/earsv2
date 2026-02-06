@@ -438,7 +438,7 @@ class ProgressReportController extends Controller
      *
      * @return string
      */
-    public function actionExtensionRequests($status = null)
+    public function actionExtensionRequests($status = null, $month = null, $year = null)
     {
         // Check if user is administrator
         if (Yii::$app->user->identity->role !== \common\models\User::ROLE_ADMINISTRATOR) {
@@ -455,6 +455,17 @@ class ProgressReportController extends Controller
             $query->andWhere(['extension_status' => $status]);
         }
 
+        // Apply month and year filter if provided
+        if ($month !== null && $year !== null) {
+            $startOfMonth = mktime(0, 0, 0, $month, 1, $year);
+            $endOfMonth = mktime(23, 59, 59, $month, date('t', $startOfMonth), $year);
+            $query->andWhere(['between', 'created_at', $startOfMonth, $endOfMonth]);
+        } elseif ($year !== null) {
+            $startOfYear = mktime(0, 0, 0, 1, 1, $year);
+            $endOfYear = mktime(23, 59, 59, 12, 31, $year);
+            $query->andWhere(['between', 'created_at', $startOfYear, $endOfYear]);
+        }
+
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
             'pagination' => [
@@ -465,6 +476,8 @@ class ProgressReportController extends Controller
         return $this->render('extension-requests', [
             'dataProvider' => $dataProvider,
             'statusFilter' => $status,
+            'monthFilter' => $month,
+            'yearFilter' => $year,
         ]);
     }
 
