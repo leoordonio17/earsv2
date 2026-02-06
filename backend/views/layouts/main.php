@@ -69,14 +69,25 @@ if (!Yii::$app->user->isGuest) {
                         </ul>
                     </li>
 
-                    <li class="nav-item <?= Yii::$app->controller->id === 'progress-report' ? 'active' : '' ?>">
+                    <li class="nav-item <?= Yii::$app->controller->id === 'progress-report' && Yii::$app->controller->action->id !== 'extension-requests' ? 'active' : '' ?>">
                         <?= Html::a('<span class="nav-icon">📈</span><span class="nav-text">Progress Report</span>', ['/progress-report/index'], ['class' => 'nav-link']) ?>
                     </li>
 
                     <!-- Extension Requests (Administrator Only) -->
                     <?php if (Yii::$app->user->identity->role === \common\models\User::ROLE_ADMINISTRATOR): ?>
+                    <?php
+                    // Count pending extension requests
+                    $pendingCount = \common\models\ProgressReport::find()
+                        ->where(['has_extension' => 1, 'extension_status' => \common\models\ProgressReport::EXTENSION_PENDING])
+                        ->count();
+                    ?>
                     <li class="nav-item <?= Yii::$app->controller->id === 'progress-report' && Yii::$app->controller->action->id === 'extension-requests' ? 'active' : '' ?>">
-                        <?= Html::a('<span class="nav-icon">📋</span><span class="nav-text">Extension Requests</span>', ['/progress-report/extension-requests'], ['class' => 'nav-link']) ?>
+                        <?= Html::a(
+                            '<span class="nav-icon">📋</span><span class="nav-text">Extension Requests</span>' . 
+                            ($pendingCount > 0 ? '<span class="nav-badge">' . $pendingCount . '</span>' : ''),
+                            ['/progress-report/extension-requests', 'status' => \common\models\ProgressReport::EXTENSION_PENDING],
+                            ['class' => 'nav-link']
+                        ) ?>
                     </li>
                     <?php endif; ?>
 
