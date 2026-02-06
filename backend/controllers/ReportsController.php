@@ -22,6 +22,79 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 class ReportsController extends Controller
 {
     /**
+     * Convert signature image to base64 data URI for TCPDF
+     * @param string $signaturePath
+     * @return string|null
+     */
+    private function getSignatureDataUri($signaturePath)
+    {
+        if (!file_exists($signaturePath)) {
+            return null;
+        }
+        
+        // Get image info
+        $imageInfo = @getimagesize($signaturePath);
+        if (!$imageInfo) {
+            return null;
+        }
+        
+        // Convert PNG to JPEG to avoid TCPDF alpha channel issues (only if GD is available)
+        if ($imageInfo[2] == IMAGETYPE_PNG && extension_loaded('gd')) {
+            try {
+                $sourceImage = @\imagecreatefrompng($signaturePath);
+                if (!$sourceImage) {
+                    // Fallback to original file if GD fails
+                    $imageData = @file_get_contents($signaturePath);
+                    if (!$imageData) {
+                        return null;
+                    }
+                    $mimeType = $imageInfo['mime'];
+                    return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                }
+                
+                // Create a new true color image
+                $width = \imagesx($sourceImage);
+                $height = \imagesy($sourceImage);
+                $newImage = \imagecreatetruecolor($width, $height);
+                
+                // Fill with white background
+                $white = \imagecolorallocate($newImage, 255, 255, 255);
+                \imagefill($newImage, 0, 0, $white);
+                
+                // Copy and merge
+                \imagecopy($newImage, $sourceImage, 0, 0, 0, 0, $width, $height);
+                
+                // Get JPEG as base64
+                ob_start();
+                \imagejpeg($newImage, null, 90);
+                $imageData = ob_get_clean();
+                
+                \imagedestroy($sourceImage);
+                \imagedestroy($newImage);
+                
+                return 'data:image/jpeg;base64,' . base64_encode($imageData);
+            } catch (\Exception $e) {
+                // Fallback to original file if conversion fails
+                $imageData = @file_get_contents($signaturePath);
+                if (!$imageData) {
+                    return null;
+                }
+                $mimeType = $imageInfo['mime'];
+                return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+            }
+        }
+        
+        // For JPEG or other formats, or if GD is not available, just encode as is
+        $imageData = @file_get_contents($signaturePath);
+        if (!$imageData) {
+            return null;
+        }
+        
+        $mimeType = $imageInfo['mime'];
+        return 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+    }
+    
+    /**
      * {@inheritdoc}
      */
     public function behaviors()
@@ -190,7 +263,7 @@ class ReportsController extends Controller
         
         // Style headers
         $sheet->getStyle('A' . $row . ':E' . $row)->applyFromArray([
-            'font' => ['bold' => true],
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => '967259']
@@ -279,26 +352,56 @@ class ReportsController extends Controller
         // Add signature section
         $row += 2;
         if ($user) {
+            // Prepared by
             $sheet->setCellValue('A' . $row, 'Prepared by:');
             $sheet->getStyle('A' . $row)->getFont()->setBold(true);
             $row++;
+            if ($user->digital_signature) {
+                $sheet->setCellValue('A' . $row, 'Signed');
+                $sheet->getStyle('A' . $row)->getFont()->setItalic(true);
+                $row++;
+            }
             $sheet->setCellValue('A' . $row, $user->full_name);
             $row++;
             $sheet->setCellValue('A' . $row, $user->position ?? '');
             
+            // Reviewed by
             $row += 2;
-            $sheet->setCellValue('A' . $row, 'Approved By:');
+            $sheet->setCellValue('A' . $row, 'Reviewed by:');
             $sheet->getStyle('A' . $row)->getFont()->setBold(true);
             $row++;
-            $sheet->setCellValue('A' . $row, '_________________________');
+            if ($user->reviewer) {
+                $sheet->setCellValue('A' . $row, $user->reviewer->full_name);
+                $row++;
+                $sheet->setCellValue('A' . $row, $user->reviewer_designation ?? $user->reviewer->position ?? '');
+            } else {
+                $sheet->setCellValue('A' . $row, '_________________________');
+                $row++;
+                $sheet->setCellValue('A' . $row, 'Name and Designation');
+            }
+            
+            // Approved by
+            $row += 2;
+            $sheet->setCellValue('A' . $row, 'Approved by:');
+            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
             $row++;
-            $sheet->setCellValue('A' . $row, 'Fellow');
+            if ($user->approver) {
+                $sheet->setCellValue('A' . $row, $user->approver->full_name);
+                $row++;
+                $sheet->setCellValue('A' . $row, $user->approver_designation ?? $user->approver->position ?? '');
+            } else {
+                $sheet->setCellValue('A' . $row, '_________________________');
+                $row++;
+                $sheet->setCellValue('A' . $row, 'Name and Designation');
+            }
         }
         
-        // Auto-size columns
-        foreach ($columns as $column) {
-            $sheet->getColumnDimension($column)->setAutoSize(true);
-        }
+        // Set column widths
+        $sheet->getColumnDimension('A')->setWidth(40);
+        $sheet->getColumnDimension('B')->setWidth(15);
+        $sheet->getColumnDimension('C')->setWidth(15);
+        $sheet->getColumnDimension('D')->setWidth(15);
+        $sheet->getColumnDimension('E')->setWidth(15);
     }
 
     /**
@@ -452,26 +555,60 @@ class ReportsController extends Controller
         // Add signature section
         $row += 2;
         if ($user) {
+            // Prepared by
             $sheet->setCellValue('A' . $row, 'Prepared by:');
             $sheet->getStyle('A' . $row)->getFont()->setBold(true);
             $row++;
+            if ($user->digital_signature) {
+                $sheet->setCellValue('A' . $row, 'Signed');
+                $sheet->getStyle('A' . $row)->getFont()->setItalic(true);
+                $row++;
+            }
             $sheet->setCellValue('A' . $row, $user->full_name);
             $row++;
             $sheet->setCellValue('A' . $row, $user->position ?? '');
             
+            // Reviewed by
             $row += 2;
-            $sheet->setCellValue('A' . $row, 'Approved By:');
-        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
-        $row++;
-        $sheet->setCellValue('A' . $row, '_________________________');
-        $row++;
-        $sheet->setCellValue('A' . $row, 'Fellow');
-    }
-        
-        // Auto-size columns
-        foreach ($columns as $column) {
-            $sheet->getColumnDimension($column)->setAutoSize(true);
+            $sheet->setCellValue('A' . $row, 'Reviewed by:');
+            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+            $row++;
+            if ($user->reviewer) {
+                $sheet->setCellValue('A' . $row, $user->reviewer->full_name);
+                $row++;
+                $sheet->setCellValue('A' . $row, $user->reviewer_designation ?? $user->reviewer->position ?? '');
+            } else {
+                $sheet->setCellValue('A' . $row, '_________________________');
+                $row++;
+                $sheet->setCellValue('A' . $row, 'Name and Designation');
+            }
+            
+            // Approved by
+            $row += 2;
+            $sheet->setCellValue('A' . $row, 'Approved by:');
+            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+            $row++;
+            if ($user->approver) {
+                $sheet->setCellValue('A' . $row, $user->approver->full_name);
+                $row++;
+                $sheet->setCellValue('A' . $row, $user->approver_designation ?? $user->approver->position ?? '');
+            } else {
+                $sheet->setCellValue('A' . $row, '_________________________');
+                $row++;
+                $sheet->setCellValue('A' . $row, 'Name and Designation');
+            }
         }
+        
+        // Set column widths
+        $sheet->getColumnDimension('A')->setWidth(35);
+        $sheet->getColumnDimension('B')->setWidth(12);
+        $sheet->getColumnDimension('C')->setWidth(12);
+        $sheet->getColumnDimension('D')->setWidth(15);
+        $sheet->getColumnDimension('E')->setWidth(35);
+        $sheet->getColumnDimension('F')->setWidth(12);
+        $sheet->getColumnDimension('G')->setWidth(12);
+        $sheet->getColumnDimension('H')->setWidth(12);
+        $sheet->getColumnDimension('I')->setWidth(25);
     }
 
     /**
@@ -601,28 +738,58 @@ class ReportsController extends Controller
             $sheet->setCellValue('A' . $row, 'Prepared by:');
             $sheet->getStyle('A' . $row)->getFont()->setBold(true);
             $row += 2;
+            
+            // Add "Signed" if user has digital signature
+            if ($user->digital_signature) {
+                $sheet->setCellValue('A' . $row, 'Signed');
+                $sheet->getStyle('A' . $row)->getFont()->setItalic(true);
+                $row++;
+            }
+            
             $sheet->setCellValue('A' . $row, $user->full_name);
             $row++;
             $sheet->setCellValue('A' . $row, $user->position ?? '');
             
-            $row += 4; // Add more space between Prepared by and Reviewed by
+            // Reviewed by
+            $row += 2;
             $sheet->setCellValue('A' . $row, 'Reviewed by:');
             $sheet->getStyle('A' . $row)->getFont()->setBold(true);
-            $row += 2;
-            $sheet->setCellValue('A' . $row, '_________________________');
             $row++;
-            $sheet->setCellValue('A' . $row, 'Designation');
+            if ($user->reviewer) {
+                $sheet->setCellValue('A' . $row, $user->reviewer->full_name);
+                $row++;
+                $sheet->setCellValue('A' . $row, $user->reviewer_designation ?? $user->reviewer->position ?? '');
+            } else {
+                $sheet->setCellValue('A' . $row, '_________________________');
+                $row++;
+                $sheet->setCellValue('A' . $row, 'Name and Designation');
+            }
+            
+            // Approved by
+            $row += 2;
+            $sheet->setCellValue('A' . $row, 'Approved by:');
+            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+            $row++;
+            if ($user->approver) {
+                $sheet->setCellValue('A' . $row, $user->approver->full_name);
+                $row++;
+                $sheet->setCellValue('A' . $row, $user->approver_designation ?? $user->approver->position ?? '');
+            } else {
+                $sheet->setCellValue('A' . $row, '_________________________');
+                $row++;
+                $sheet->setCellValue('A' . $row, 'Name and Designation');
+            }
         }
         
-        // Auto-size columns
-        $columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        foreach ($columns as $column) {
-        }
-        
-        // Auto-size columns
-        foreach ($columns as $column) {
-            $sheet->getColumnDimension($column)->setAutoSize(true);
-        }
+        // Set column widths
+        $sheet->getColumnDimension('A')->setWidth(12);
+        $sheet->getColumnDimension('B')->setWidth(30);
+        $sheet->getColumnDimension('C')->setWidth(12);
+        $sheet->getColumnDimension('D')->setWidth(12);
+        $sheet->getColumnDimension('E')->setWidth(30);
+        $sheet->getColumnDimension('F')->setWidth(12);
+        $sheet->getColumnDimension('G')->setWidth(15);
+        $sheet->getColumnDimension('H')->setWidth(30);
     }
 
     /**
@@ -727,11 +894,13 @@ class ReportsController extends Controller
     {
         $user = $userId ? User::findOne($userId) : null;
         
-        $html = '<style>
+         $html = '<style>
             table { border-collapse: collapse; width: 100%; }
             th { background-color: #967259; color: white; padding: 8px; text-align: center; font-weight: bold; border: 1px solid #000; }
             td { padding: 6px; border: 1px solid #000; font-size: 9px; }
             .header-info { margin-bottom: 10px; }
+            .project-header { background-color: #E8E8E8; font-weight: bold; padding: 8px; border: 1px solid #000; }
+            .signature-section { margin-top: 30px; }
         </style>';
         
         if ($user) {
@@ -743,11 +912,7 @@ class ReportsController extends Controller
             </div>';
         }
         
-        $html .= '<style>
-            .project-header { background-color: #E8E8E8; font-weight: bold; padding: 8px; border: 1px solid #000; }
-            .signature-section { margin-top: 30px; }
-            .signature-box { display: inline-block; width: 45%; vertical-align: top; }
-        </style>
+        $html .= '
         <table>
             <thead>
                 <tr>
@@ -815,18 +980,50 @@ class ReportsController extends Controller
         
         // Add signature section
         if ($user) {
-            $html .= '<div class="signature-section">
-                <div>
-                    <strong>Prepared by:</strong><br><br>
-                    ' . htmlspecialchars($user->full_name) . '<br>
-                    ' . htmlspecialchars($user->position ?? '') . '
-                </div>
-                <div style="margin-top: 20px;">
-                    <strong>Approved By:</strong><br><br>
-                    _________________________<br>
-                    Fellow
-                </div>
-            </div>';
+            $html .= '<div class="signature-section" style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 20px;">';
+            
+            // Prepared by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Prepared by:</div>';
+            
+            // Add digital signature image if available
+            if ($user->digital_signature) {
+                $signaturePath = Yii::getAlias('@backend/web') . $user->digital_signature;
+                $signatureDataUri = $this->getSignatureDataUri($signaturePath);
+                if ($signatureDataUri) {
+                    $html .= '<div style="width: 70px; height: 25px; overflow: hidden; margin: 0; padding: 0; line-height: 0;"><img src="' . $signatureDataUri . '" style="width: 70px; height: 25px; display: block; margin: 0; padding: 0;"></div>';
+                }
+            }
+            
+            $html .= '<div style="margin: 0; padding: 0; line-height: 1.1;">' . htmlspecialchars($user->full_name) . '</div>
+                    <div style="margin: 0; padding: 0; line-height: 1.1;">' . htmlspecialchars($user->position ?? '') . '</div>
+                </div>';
+            
+            // Reviewed by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Reviewed by:</div>';
+            
+            if ($user->reviewer) {
+                $html .= '<div>' . htmlspecialchars($user->reviewer->full_name) . '</div>
+                        <div>' . htmlspecialchars($user->reviewer_designation ?? $user->reviewer->position ?? '') . '</div>
+                    </div>';
+            } else {
+                $html .= '<div>_________________________</div><div>Name and Designation</div></div>';
+            }
+            
+            // Approved by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Approved by:</div>';
+            
+            if ($user->approver) {
+                $html .= '<div>' . htmlspecialchars($user->approver->full_name) . '</div>
+                        <div>' . htmlspecialchars($user->approver_designation ?? $user->approver->position ?? '') . '</div>
+                    </div>';
+            } else {
+                $html .= '<div>_________________________</div><div>Name and Designation</div></div>';
+            }
+            
+            $html .= '</div>';
         }
         
         return $html;
@@ -952,18 +1149,50 @@ class ReportsController extends Controller
         
         // Add signature section
         if ($user) {
-            $html .= '<div class="signature-section">
-                <div>
-                    <strong>Prepared by:</strong><br><br>
-                    ' . htmlspecialchars($user->full_name) . '<br>
-                    ' . htmlspecialchars($user->position ?? '') . '
-                </div>
-                <div style="margin-top: 20px;">
-                    <strong>Approved By:</strong><br><br>
-                    _________________________<br>
-                    Fellow
-                </div>
-            </div>';
+            $html .= '<div class="signature-section" style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 20px;">';
+            
+            // Prepared by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Prepared by:</div>';
+            
+            // Add digital signature image if available
+            if ($user->digital_signature) {
+                $signaturePath = Yii::getAlias('@backend/web') . $user->digital_signature;
+                $signatureDataUri = $this->getSignatureDataUri($signaturePath);
+                if ($signatureDataUri) {
+                    $html .= '<div style="width: 70px; height: 25px; overflow: hidden; margin: 0; padding: 0; line-height: 0;"><img src="' . $signatureDataUri . '" style="width: 70px; height: 25px; display: block; margin: 0; padding: 0;"></div>';
+                }
+            }
+            
+            $html .= '<div style="margin: 0; padding: 0; line-height: 1.1;">' . htmlspecialchars($user->full_name) . '</div>
+                    <div style="margin: 0; padding: 0; line-height: 1.1;">' . htmlspecialchars($user->position ?? '') . '</div>
+                </div>';
+            
+            // Reviewed by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Reviewed by:</div>';
+            
+            if ($user->reviewer) {
+                $html .= '<div>' . htmlspecialchars($user->reviewer->full_name) . '</div>
+                        <div>' . htmlspecialchars($user->reviewer_designation ?? $user->reviewer->position ?? '') . '</div>
+                    </div>';
+            } else {
+                $html .= '<div>_________________________</div><div>Name and Designation</div></div>';
+            }
+            
+            // Approved by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Approved by:</div>';
+            
+            if ($user->approver) {
+                $html .= '<div>' . htmlspecialchars($user->approver->full_name) . '</div>
+                        <div>' . htmlspecialchars($user->reviewer_designation ?? $user->approver->position ?? '') . '</div>
+                    </div>';
+            } else {
+                $html .= '<div>_________________________</div><div>Name and Designation</div></div>';
+            }
+            
+            $html .= '</div>';
         }
         
         return $html;
@@ -1068,22 +1297,63 @@ class ReportsController extends Controller
         $html .= '<div class="note" style="margin-top: 20px;">Note: A Plan of Action and other pertinent documents need to be attached to this document to support the request for extension.</div>';
         
         // Signature section
-        $html .= '<div class="signature-section">';
+        $html .= '<div class="signature-section" style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 20px;">';
         
         if ($user) {
-            $html .= '<div><strong>Prepared by:</strong></div>
-                <div style="margin-top: 5px;">' . htmlspecialchars($user->full_name) . '</div>
-                <div>' . htmlspecialchars($user->position ?? '') . '</div>';
+            // Prepared by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Prepared by:</div>';
+            
+            // Add digital signature image if available
+            if ($user->digital_signature) {
+                $signaturePath = Yii::getAlias('@backend/web') . $user->digital_signature;
+                $signatureDataUri = $this->getSignatureDataUri($signaturePath);
+                if ($signatureDataUri) {
+                    $html .= '<div style="width: 70px; height: 25px; overflow: hidden; margin: 0; padding: 0; line-height: 0;"><img src="' . $signatureDataUri . '" style="width: 70px; height: 25px; display: block; margin: 0; padding: 0;"></div>';
+                }
+            }
+            
+            $html .= '<div style="margin: 0; padding: 0; line-height: 1.1;">' . htmlspecialchars($user->full_name) . '</div>
+                <div style="margin: 0; padding: 0; line-height: 1.1;">' . htmlspecialchars($user->position ?? '') . '</div></div>';
+            
+            // Reviewed by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Reviewed by:</div>';
+            
+            if ($user->reviewer) {
+                $html .= '<div>' . htmlspecialchars($user->reviewer->full_name) . '</div>
+                    <div>' . htmlspecialchars($user->reviewer_designation ?? $user->reviewer->position ?? '') . '</div></div>';
+            } else {
+                $html .= '<div>______________________________</div>
+                    <div>Name and Designation</div></div>';
+            }
+            
+            // Approved by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Approved by:</div>';
+            
+            if ($user->approver) {
+                $html .= '<div>' . htmlspecialchars($user->approver->full_name) . '</div>
+                    <div>' . htmlspecialchars($user->approver_designation ?? $user->approver->position ?? '') . '</div></div>';
+            } else {
+                $html .= '<div>______________________________</div>
+                    <div>Name and Designation</div></div>';
+            }
         } else {
-            $html .= '<div><strong>Prepared by:</strong></div>
-                <div style="margin-top: 30px;">______________________________</div>
-                <div>Name and Position</div>';
+            $html .= '<div style="flex: 1; text-align: left;"><div style="font-weight: bold; margin-bottom: 5px;">Prepared by:</div>
+                <div>______________________________</div>
+                <div>Name and Position</div></div>';
+            
+            $html .= '<div style="flex: 1; text-align: left;"><div style="font-weight: bold; margin-bottom: 5px;">Reviewed by:</div>
+                <div>______________________________</div>
+                <div>Designation</div></div>';
+            
+            $html .= '<div style="flex: 1; text-align: left;"><div style="font-weight: bold; margin-bottom: 5px;">Approved by:</div>
+                <div>______________________________</div>
+                <div>Designation</div></div>';
         }
         
-        $html .= '<div style="margin-top: 50px;"><strong>Reviewed by:</strong></div>
-            <div style="margin-top: 30px;">______________________________</div>
-            <div>Designation</div>
-        </div>';
+        $html .= '</div>';
         
         return $html;
     }
@@ -1207,23 +1477,65 @@ class ReportsController extends Controller
         $sheet->setCellValue('A' . $row, 'Prepared by:');
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $row += 2;
-        $sheet->setCellValue('A' . $row, '______________________________');
-        $row++;
-        $sheet->setCellValue('A' . $row, 'Administrator Name and Position');
         
-        $row += 4; // Add more space between Prepared by and Reviewed by
+        // Get current user (admin)
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->digital_signature) {
+            $sheet->setCellValue('A' . $row, 'Signed');
+            $sheet->getStyle('A' . $row)->getFont()->setItalic(true);
+            $row++;
+        }
+        
+        if ($currentUser) {
+            $sheet->setCellValue('A' . $row, $currentUser->full_name);
+            $row++;
+            $sheet->setCellValue('A' . $row, $currentUser->position ?? '');
+        } else {
+            $sheet->setCellValue('A' . $row, '______________________________');
+            $row++;
+            $sheet->setCellValue('A' . $row, 'Administrator Name and Position');
+        }
+        
+        // Reviewed by
+        $row += 2;
         $sheet->setCellValue('A' . $row, 'Reviewed by:');
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
-        $row += 2;
-        $sheet->setCellValue('A' . $row, '_________________________');
         $row++;
-        $sheet->setCellValue('A' . $row, 'Designation');
-        
-        // Auto-size columns
-        $columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
-        foreach ($columns as $column) {
-            $sheet->getColumnDimension($column)->setAutoSize(true);
+        if ($currentUser && $currentUser->reviewer) {
+            $sheet->setCellValue('A' . $row, $currentUser->reviewer->full_name);
+            $row++;
+            $sheet->setCellValue('A' . $row, $currentUser->reviewer_designation ?? $currentUser->reviewer->position ?? '');
+        } else {
+            $sheet->setCellValue('A' . $row, '_________________________');
+            $row++;
+            $sheet->setCellValue('A' . $row, 'Name and Designation');
         }
+        
+        // Approved by
+        $row += 2;
+        $sheet->setCellValue('A' . $row, 'Approved by:');
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row++;
+        if ($currentUser && $currentUser->approver) {
+            $sheet->setCellValue('A' . $row, $currentUser->approver->full_name);
+            $row++;
+            $sheet->setCellValue('A' . $row, $currentUser->approver_designation ?? $currentUser->approver->position ?? '');
+        } else {
+            $sheet->setCellValue('A' . $row, '_________________________');
+            $row++;
+            $sheet->setCellValue('A' . $row, 'Name and Designation');
+        }
+        
+        // Set column widths
+        $sheet->getColumnDimension('A')->setWidth(20);
+        $sheet->getColumnDimension('B')->setWidth(12);
+        $sheet->getColumnDimension('C')->setWidth(25);
+        $sheet->getColumnDimension('D')->setWidth(12);
+        $sheet->getColumnDimension('E')->setWidth(12);
+        $sheet->getColumnDimension('F')->setWidth(25);
+        $sheet->getColumnDimension('G')->setWidth(12);
+        $sheet->getColumnDimension('H')->setWidth(15);
+        $sheet->getColumnDimension('I')->setWidth(25);
     }
 
     /**
@@ -1316,15 +1628,65 @@ class ReportsController extends Controller
         $html .= '<div class="note" style="margin-top: 20px;">Note: A Plan of Action and other pertinent documents need to be attached to this document to support the request for extension.</div>';
         
         // Signature section
-        $html .= '<div class="signature-section">';
-        $html .= '<div><strong>Prepared by:</strong></div>
-            <div style="margin-top: 30px;">______________________________</div>
-            <div>Administrator Name and Position</div>';
+        $html .= '<div class="signature-section" style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 20px;">';
         
-        $html .= '<div style="margin-top: 50px;"><strong>Reviewed by:</strong></div>
-            <div style="margin-top: 30px;">______________________________</div>
-            <div>Designation</div>
-        </div>';
+        // Get current user (admin)
+        $currentUser = Yii::$app->user->identity;
+        
+        // Prepared by
+        $html .= '<div style="width: 33%; text-align: left;">
+            <div style="font-weight: bold; margin-bottom: 5px;">Prepared by:</div>';
+        
+        // Add digital signature image if available
+        if ($currentUser && $currentUser->digital_signature) {
+            $signaturePath = Yii::getAlias('@backend/web') . $currentUser->digital_signature;
+            $signatureDataUri = $this->getSignatureDataUri($signaturePath);
+            if ($signatureDataUri) {
+                $html .= '<div style="width: 70px; height: 25px; overflow: hidden; margin: 0; padding: 0; line-height: 0;"><img src="' . $signatureDataUri . '" style="width: 70px; height: 25px; display: block; margin: 0; padding: 0;"></div>';
+            }
+        }
+        
+        if ($currentUser) {
+            $html .= '<div style="margin: 0; padding: 0; line-height: 1.1;">' . htmlspecialchars($currentUser->full_name) . '</div>
+                <div style="margin: 0; padding: 0; line-height: 1.1;">' . htmlspecialchars($currentUser->position ?? '') . '</div></div>';
+            
+            // Reviewed by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Reviewed by:</div>';
+            
+            if ($currentUser->reviewer) {
+                $html .= '<div>' . htmlspecialchars($currentUser->reviewer->full_name) . '</div>
+                    <div>' . htmlspecialchars($currentUser->reviewer_designation ?? $currentUser->reviewer->position ?? '') . '</div></div>';
+            } else {
+                $html .= '<div>______________________________</div>
+                    <div>Name and Designation</div></div>';
+            }
+            
+            // Approved by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Approved by:</div>';
+            
+            if ($currentUser->approver) {
+                $html .= '<div>' . htmlspecialchars($currentUser->approver->full_name) . '</div>
+                    <div>' . htmlspecialchars($currentUser->approver_designation ?? $currentUser->approver->position ?? '') . '</div></div>';
+            } else {
+                $html .= '<div>______________________________</div>
+                    <div>Name and Designation</div></div>';
+            }
+        } else {
+            $html .= '______________________________<br>
+                Administrator Name and Position</div>';
+            
+            $html .= '<div style="text-align: center;"><strong>Reviewed by:</strong><br>
+                ______________________________<br>
+                Designation</div>';
+            
+            $html .= '<div style="text-align: center;"><strong>Approved by:</strong><br>
+                ______________________________<br>
+                Designation</div>';
+        }
+        
+        $html .= '</div>';
         
         return $html;
     }
@@ -1434,24 +1796,67 @@ class ReportsController extends Controller
         $sheet->setCellValue('A' . $row, 'Prepared by:');
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $row += 2;
-        $sheet->setCellValue('A' . $row, '_________________________');
-        $row++;
-        $sheet->setCellValue('A' . $row, 'Personnel Name');
-        $row++;
-        $sheet->setCellValue('A' . $row, 'Position');
         
+        // Get current user (admin or assigned personnel)
+        $currentUser = Yii::$app->user->identity;
+        if ($currentUser && $currentUser->digital_signature) {
+            $sheet->setCellValue('A' . $row, 'Signed');
+            $sheet->getStyle('A' . $row)->getFont()->setItalic(true);
+            $row++;
+        }
+        
+        if ($currentUser) {
+            $sheet->setCellValue('A' . $row, $currentUser->full_name);
+            $row++;
+            $sheet->setCellValue('A' . $row, $currentUser->position ?? '');
+        } else {
+            $sheet->setCellValue('A' . $row, '_________________________');
+            $row++;
+            $sheet->setCellValue('A' . $row, 'Personnel Name');
+            $row++;
+            $sheet->setCellValue('A' . $row, 'Position');
+        }
+        
+        // Reviewed by
         $row += 2;
         $sheet->setCellValue('A' . $row, 'Reviewed by:');
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $row++;
-        $sheet->setCellValue('A' . $row, '_________________________');
-        $row++;
-        $sheet->setCellValue('A' . $row, 'Designation');
-        
-        // Auto-size columns
-        foreach ($columns as $column) {
-            $sheet->getColumnDimension($column)->setAutoSize(true);
+        if ($currentUser && $currentUser->reviewer) {
+            $sheet->setCellValue('A' . $row, $currentUser->reviewer->full_name);
+            $row++;
+            $sheet->setCellValue('A' . $row, $currentUser->reviewer_designation ?? $currentUser->reviewer->position ?? '');
+        } else {
+            $sheet->setCellValue('A' . $row, '_________________________');
+            $row++;
+            $sheet->setCellValue('A' . $row, 'Name and Designation');
         }
+        
+        // Approved by
+        $row += 2;
+        $sheet->setCellValue('A' . $row, 'Approved by:');
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row++;
+        if ($currentUser && $currentUser->approver) {
+            $sheet->setCellValue('A' . $row, $currentUser->approver->full_name);
+            $row++;
+            $sheet->setCellValue('A' . $row, $currentUser->approver_designation ?? $currentUser->approver->position ?? '');
+        } else {
+            $sheet->setCellValue('A' . $row, '_________________________');
+            $row++;
+            $sheet->setCellValue('A' . $row, 'Name and Designation');
+        }
+        
+        // Set column widths
+        $sheet->getColumnDimension('A')->setWidth(20);
+        $sheet->getColumnDimension('B')->setWidth(12);
+        $sheet->getColumnDimension('C')->setWidth(25);
+        $sheet->getColumnDimension('D')->setWidth(12);
+        $sheet->getColumnDimension('E')->setWidth(12);
+        $sheet->getColumnDimension('F')->setWidth(25);
+        $sheet->getColumnDimension('G')->setWidth(12);
+        $sheet->getColumnDimension('H')->setWidth(15);
+        $sheet->getColumnDimension('I')->setWidth(25);
     }
 
     /**
@@ -1532,15 +1937,65 @@ class ReportsController extends Controller
         $html .= '<div class="note">Note: A Plan of Action and other pertinent documents need to be attached to this document to support the request for extension.</div>';
         
         // Signature section
-        $html .= '<div class="signature-section">';
-        $html .= '<div><strong>Prepared by:</strong></div>
-            <div style="margin-top: 30px;">______________________________</div>
-            <div>Personnel Name and Position</div>';
+        $html .= '<div class="signature-section" style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 20px;">';
         
-        $html .= '<div style="margin-top: 50px;"><strong>Reviewed by:</strong></div>
-            <div style="margin-top: 30px;">______________________________</div>
-            <div>Designation</div>
-        </div>';
+        // Get current user
+        $currentUser = Yii::$app->user->identity;
+        
+        // Prepared by
+        $html .= '<div style="width: 33%; text-align: left;">
+            <div style="font-weight: bold; margin-bottom: 5px;">Prepared by:</div>';
+        
+        // Add digital signature image if available
+        if ($currentUser && $currentUser->digital_signature) {
+            $signaturePath = Yii::getAlias('@backend/web') . $currentUser->digital_signature;
+            $signatureDataUri = $this->getSignatureDataUri($signaturePath);
+            if ($signatureDataUri) {
+                $html .= '<div style="width: 70px; height: 25px; overflow: hidden; margin: 0; padding: 0; line-height: 0;"><img src="' . $signatureDataUri . '" style="width: 70px; height: 25px; display: block; margin: 0; padding: 0;"></div>';
+            }
+        }
+        
+        if ($currentUser) {
+            $html .= '<div style="margin: 0; padding: 0; line-height: 1.1;">' . htmlspecialchars($currentUser->full_name) . '</div>
+                <div style="margin: 0; padding: 0; line-height: 1.1;">' . htmlspecialchars($currentUser->position ?? '') . '</div></div>';
+            
+            // Reviewed by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Reviewed by:</div>';
+            
+            if ($currentUser->reviewer) {
+                $html .= '<div>' . htmlspecialchars($currentUser->reviewer->full_name) . '</div>
+                    <div>' . htmlspecialchars($currentUser->reviewer_designation ?? $currentUser->reviewer->position ?? '') . '</div></div>';
+            } else {
+                $html .= '<div>______________________________</div>
+                    <div>Name and Designation</div></div>';
+            }
+            
+            // Approved by
+            $html .= '<div style="width: 33%; text-align: left;">
+                <div style="font-weight: bold; margin-bottom: 5px;">Approved by:</div>';
+            
+            if ($currentUser->approver) {
+                $html .= '<div>' . htmlspecialchars($currentUser->approver->full_name) . '</div>
+                    <div>' . htmlspecialchars($currentUser->approver_designation ?? $currentUser->approver->position ?? '') . '</div></div>';
+            } else {
+                $html .= '<div>______________________________</div>
+                    <div>Name and Designation</div></div>';
+            }
+        } else {
+            $html .= '______________________________<br>
+                Personnel Name and Position</div>';
+            
+            $html .= '<div style="text-align: center;"><strong>Reviewed by:</strong><br>
+                ______________________________<br>
+                Designation</div>';
+            
+            $html .= '<div style="text-align: center;"><strong>Approved by:</strong><br>
+                ______________________________<br>
+                Designation</div>';
+        }
+        
+        $html .= '</div>';
         
         return $html;
     }
