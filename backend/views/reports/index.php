@@ -191,6 +191,7 @@ JqueryAsset::register($this);
                     ];
                     
                     if ($isAdmin) {
+                        $reportTypes['progress-report-by-project'] = 'Progress Report per Project (Admin)';
                         $reportTypes['progress-report-combined'] = 'Progress Report - All Projects Combined (Admin)';
                     }
                     ?>
@@ -209,14 +210,29 @@ JqueryAsset::register($this);
                 </div>
                 
                 <?php if ($isAdmin): ?>
-                <div class="form-group">
-                    <label>Personnel <span style="color: #6c757d; font-weight: normal;">(Optional - Leave empty for all)</span></label>
+                <div class="form-group" id="user-select-group">
+                    <label>Personnel <span style="color: #6c757d; font-weight: normal;">(Optional - Leave empty for your own report)</span></label>
                     <?= Select2::widget([
                         'name' => 'user_id',
                         'data' => $personnel,
                         'options' => [
                             'placeholder' => 'Select personnel...',
                             'id' => 'user-id',
+                        ],
+                        'pluginOptions' => [
+                            'allowClear' => true,
+                        ],
+                    ]); ?>
+                </div>
+                
+                <div class="form-group" id="project-select-group" style="display:none;">
+                    <label>Project <span class="required">*</span></label>
+                    <?= Select2::widget([
+                        'name' => 'project_id',
+                        'data' => $projects,
+                        'options' => [
+                            'placeholder' => 'Select project...',
+                            'id' => 'project-id',
                         ],
                         'pluginOptions' => [
                             'allowClear' => true,
@@ -286,6 +302,26 @@ $pdfUrl = \yii\helpers\Url::to(['reports/export-pdf']);
 
 $js = <<<JS
 jQuery(document).ready(function($) {
+    // Show/hide project and user fields based on report type
+    $('#report-type').on('change', function() {
+        var reportType = $(this).val();
+        
+        if (reportType === 'progress-report-by-project') {
+            $('#project-select-group').show();
+            $('#user-select-group').hide();
+            $('#user-id').val('').trigger('change');
+        } else if (reportType === 'progress-report-combined') {
+            $('#project-select-group').hide();
+            $('#user-select-group').hide();
+            $('#project-id').val('').trigger('change');
+            $('#user-id').val('').trigger('change');
+        } else {
+            $('#project-select-group').hide();
+            $('#user-select-group').show();
+            $('#project-id').val('').trigger('change');
+        }
+    });
+    
     // Export to Excel
     $('#export-excel').on('click', function() {
         var type = $('#report-type').val();
@@ -293,6 +329,14 @@ jQuery(document).ready(function($) {
         if (!type) {
             alert('Please select a report type');
             return;
+        }
+        
+        if (type === 'progress-report-by-project') {
+            var projectId = $('#project-id').val();
+            if (!projectId) {
+                alert('Please select a project');
+                return;
+            }
         }
         
         var form = $('<form>', {
@@ -322,6 +366,15 @@ if ($isAdmin) {
                 'type': 'hidden',
                 'name': 'user_id',
                 'value': userId
+            }));
+        }
+        
+        var projectId = $('#project-id').val();
+        if (projectId) {
+            form.append($('<input>', {
+                'type': 'hidden',
+                'name': 'project_id',
+                'value': projectId
             }));
         }
 JS;
@@ -361,6 +414,14 @@ $js .= <<<JS
             return;
         }
         
+        if (type === 'progress-report-by-project') {
+            var projectId = $('#project-id').val();
+            if (!projectId) {
+                alert('Please select a project');
+                return;
+            }
+        }
+        
         var form = $('<form>', {
             'method': 'POST',
             'action': '$pdfUrl'
@@ -388,6 +449,15 @@ if ($isAdmin) {
                 'type': 'hidden',
                 'name': 'user_id',
                 'value': userId
+            }));
+        }
+        
+        var projectId = $('#project-id').val();
+        if (projectId) {
+            form.append($('<input>', {
+                'type': 'hidden',
+                'name': 'project_id',
+                'value': projectId
             }));
         }
 JS;

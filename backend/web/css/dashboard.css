@@ -669,6 +669,7 @@ html, body {
 .dropdown-link:hover {
     background: var(--brown-beige);
     color: var(--brown-dark);
+    text-decoration: none !important;
 }
 
 .dropdown-icon {

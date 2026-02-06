@@ -68,9 +68,24 @@ class ReportsController extends Controller
             }
         }
         
+        // Get list of projects for admin
+        $projects = [];
+        if ($isAdmin) {
+            $projectList = \common\models\ProjectAssignment::find()
+                ->select(['project_id', 'project_name'])
+                ->distinct()
+                ->orderBy(['project_name' => SORT_ASC])
+                ->all();
+            
+            foreach ($projectList as $project) {
+                $projects[$project->project_id] = $project->project_name;
+            }
+        }
+        
         return $this->render('index', [
             'isAdmin' => $isAdmin,
             'personnel' => $personnel,
+            'projects' => $projects,
         ]);
     }
 
@@ -82,6 +97,7 @@ class ReportsController extends Controller
     {
         $type = Yii::$app->request->post('type');
         $userId = Yii::$app->request->post('user_id');
+        $projectId = Yii::$app->request->post('project_id');
         $startDate = Yii::$app->request->post('start_date');
         $endDate = Yii::$app->request->post('end_date');
         
@@ -116,6 +132,17 @@ class ReportsController extends Controller
                 }
                 $this->generateProgressReportCombinedExcel($sheet, $startDate, $endDate);
                 $filename = 'Progress_Report_All_Projects_' . date('Y-m-d') . '.xlsx';
+                break;
+            case 'progress-report-by-project':
+                // Only allow admin to generate per project report
+                if (!$isAdmin) {
+                    throw new \yii\web\ForbiddenHttpException('You are not allowed to generate this report.');
+                }
+                if (empty($projectId)) {
+                    throw new \yii\web\BadRequestHttpException('Project ID is required.');
+                }
+                $this->generateProgressReportByProjectExcel($sheet, $projectId, $startDate, $endDate);
+                $filename = 'Progress_Report_Project_' . date('Y-m-d') . '.xlsx';
                 break;
             default:
                 $filename = 'Report_' . date('Y-m-d') . '.xlsx';
@@ -606,6 +633,7 @@ class ReportsController extends Controller
     {
         $type = Yii::$app->request->post('type');
         $userId = Yii::$app->request->post('user_id');
+        $projectId = Yii::$app->request->post('project_id');
         $startDate = Yii::$app->request->post('start_date');
         $endDate = Yii::$app->request->post('end_date');
         
@@ -667,6 +695,17 @@ class ReportsController extends Controller
                 }
                 $html = $this->generateProgressReportCombinedPdf($startDate, $endDate);
                 $filename = 'Progress_Report_All_Projects_' . date('Y-m-d') . '.pdf';
+                break;
+            case 'progress-report-by-project':
+                // Only allow admin to generate per project report
+                if (!$isAdmin) {
+                    throw new \yii\web\ForbiddenHttpException('You are not allowed to generate this report.');
+                }
+                if (empty($projectId)) {
+                    throw new \yii\web\BadRequestHttpException('Project ID is required.');
+                }
+                $html = $this->generateProgressReportByProjectPdf($projectId, $startDate, $endDate);
+                $filename = 'Progress_Report_Project_' . date('Y-m-d') . '.pdf';
                 break;
             default:
                 $html = '<p>Invalid report type</p>';
@@ -1281,6 +1320,222 @@ class ReportsController extends Controller
         $html .= '<div><strong>Prepared by:</strong></div>
             <div style="margin-top: 30px;">______________________________</div>
             <div>Administrator Name and Position</div>';
+        
+        $html .= '<div style="margin-top: 50px;"><strong>Reviewed by:</strong></div>
+            <div style="margin-top: 30px;">______________________________</div>
+            <div>Designation</div>
+        </div>';
+        
+        return $html;
+    }
+
+    /**
+     * Generate Progress Report per Project Excel
+     */
+    private function generateProgressReportByProjectExcel($sheet, $projectId, $startDate, $endDate)
+    {
+        // Get project info
+        $projectInfo = \common\models\ProjectAssignment::find()
+            ->where(['project_id' => $projectId])
+            ->one();
+        
+        $projectName = $projectInfo ? $projectInfo->project_name : 'Unknown Project';
+        
+        // Set header
+        $sheet->setCellValue('A1', 'PROJECT PROGRESS REPORT FORM');
+        $sheet->mergeCells('A1:I1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        
+        $sheet->setCellValue('A2', 'PIDS Research Group');
+        $sheet->mergeCells('A2:I2');
+        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        
+        $sheet->setCellValue('A4', 'Project Title: ' . $projectName);
+        $sheet->getStyle('A4')->getFont()->setBold(true);
+        $sheet->mergeCells('A4:I4');
+        
+        $sheet->setCellValue('A5', 'Period Covered: ' . ($startDate ?? 'All') . ' to ' . ($endDate ?? 'All'));
+        $sheet->mergeCells('A5:I5');
+        
+        $row = 7;
+        
+        // Get progress reports for this project
+        $query = ProgressReport::find()
+            ->where(['project_id' => $projectId])
+            ->with(['user']);
+        
+        if ($startDate) {
+            $query->andWhere(['>=', 'report_date', $startDate]);
+        }
+        
+        if ($endDate) {
+            $query->andWhere(['<=', 'report_date', $endDate]);
+        }
+        
+        $reports = $query->orderBy(['user_id' => SORT_ASC, 'report_date' => SORT_ASC])->all();
+        
+        // Column headers
+        $headers = ['Personnel', 'Month', 'Milestone', 'Approved Date', 'Status', 'Remarks (if Delayed)', 'Requesting for Extension?', 'If yes, Proposed Date Extension', 'If yes, Justification for Extension'];
+        $columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+        
+        foreach ($headers as $index => $header) {
+            $sheet->setCellValue($columns[$index] . $row, $header);
+        }
+        
+        // Style headers
+        $sheet->getStyle('A' . $row . ':I' . $row)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '967259']
+            ],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                ]
+            ]
+        ]);
+        
+        $row++;
+        
+        // Data rows
+        foreach ($reports as $report) {
+            $sheet->setCellValue('A' . $row, $report->user ? $report->user->full_name : 'N/A');
+            $sheet->setCellValue('B' . $row, date('F Y', strtotime($report->report_date)));
+            $sheet->setCellValue('C' . $row, $report->milestone_name ?? '');
+            $sheet->setCellValue('D' . $row, $report->report_date ? date('F j, Y', strtotime($report->report_date)) : '');
+            $sheet->setCellValue('E' . $row, ucfirst($report->status ?? ''));
+            $sheet->setCellValue('F' . $row, $report->remarks ?? '');
+            $sheet->setCellValue('G' . $row, $report->has_extension ? 'Yes' : 'No');
+            $sheet->setCellValue('H' . $row, $report->extension_date ? date('F j, Y', strtotime($report->extension_date)) : '');
+            $sheet->setCellValue('I' . $row, $report->extension_justification ?? '');
+            
+            // Apply borders
+            $sheet->getStyle('A' . $row . ':I' . $row)->applyFromArray([
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                    ]
+                ]
+            ]);
+            
+            $row++;
+        }
+        
+        $row += 2;
+        $sheet->setCellValue('A' . $row, 'Note: A Plan of Action and other pertinent documents need to be attached to this document to support the request for extension.');
+        $sheet->mergeCells('A' . $row . ':I' . $row);
+        
+        // Signature section
+        $row += 2;
+        $sheet->setCellValue('A' . $row, 'Prepared by:');
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row += 2;
+        $sheet->setCellValue('A' . $row, '_________________________');
+        $row++;
+        $sheet->setCellValue('A' . $row, 'Personnel Name');
+        $row++;
+        $sheet->setCellValue('A' . $row, 'Position');
+        
+        $row += 2;
+        $sheet->setCellValue('A' . $row, 'Reviewed by:');
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row++;
+        $sheet->setCellValue('A' . $row, '_________________________');
+        $row++;
+        $sheet->setCellValue('A' . $row, 'Designation');
+        
+        // Auto-size columns
+        foreach ($columns as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+    }
+
+    /**
+     * Generate Progress Report per Project PDF
+     */
+    private function generateProgressReportByProjectPdf($projectId, $startDate, $endDate)
+    {
+        // Get project info
+        $projectInfo = \common\models\ProjectAssignment::find()
+            ->where(['project_id' => $projectId])
+            ->one();
+        
+        $projectName = $projectInfo ? $projectInfo->project_name : 'Unknown Project';
+        
+        $html = '<style>
+            table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+            th { background-color: #967259; color: white; padding: 8px; text-align: center; font-weight: bold; border: 1px solid #000; }
+            td { padding: 6px; border: 1px solid #000; font-size: 9px; }
+            .project-title { font-weight: bold; margin: 15px 0; font-size: 12px; }
+            .note { margin-top: 20px; font-size: 10px; font-style: italic; }
+            .signature-section { margin-top: 30px; font-size: 10px; }
+        </style>';
+        
+        $html .= '<h2 style="text-align: center;">PROJECT PROGRESS REPORT FORM</h2>';
+        $html .= '<h3 style="text-align: center;">PIDS Research Group</h3>';
+        
+        $html .= '<div class="project-title">Project Title: ' . htmlspecialchars($projectName) . '</div>';
+        $html .= '<div style="margin-bottom: 15px;"><strong>Period Covered:</strong> ' . ($startDate ?? 'All') . ' to ' . ($endDate ?? 'All') . '</div>';
+        
+        // Get progress reports for this project
+        $query = ProgressReport::find()
+            ->where(['project_id' => $projectId])
+            ->with(['user']);
+        
+        if ($startDate) {
+            $query->andWhere(['>=', 'report_date', $startDate]);
+        }
+        
+        if ($endDate) {
+            $query->andWhere(['<=', 'report_date', $endDate]);
+        }
+        
+        $reports = $query->orderBy(['user_id' => SORT_ASC, 'report_date' => SORT_ASC])->all();
+        
+        $html .= '<table>
+            <thead>
+                <tr>
+                    <th>Personnel</th>
+                    <th>Month</th>
+                    <th>Milestone</th>
+                    <th>Approved Date</th>
+                    <th>Status</th>
+                    <th>Remarks (if Delayed)</th>
+                    <th>Requesting for Extension?</th>
+                    <th>If yes, Proposed Date Extension</th>
+                    <th>If yes, Justification for Extension</th>
+                </tr>
+            </thead>
+            <tbody>';
+        
+        foreach ($reports as $report) {
+            $html .= '<tr>
+                <td>' . htmlspecialchars($report->user ? $report->user->full_name : 'N/A') . '</td>
+                <td>' . htmlspecialchars(date('F Y', strtotime($report->report_date))) . '</td>
+                <td>' . htmlspecialchars($report->milestone_name ?? '') . '</td>
+                <td>' . htmlspecialchars($report->report_date ? date('F j, Y', strtotime($report->report_date)) : '') . '</td>
+                <td>' . htmlspecialchars(ucfirst($report->status ?? '')) . '</td>
+                <td>' . htmlspecialchars($report->remarks ?? '') . '</td>
+                <td>' . htmlspecialchars($report->has_extension ? 'Yes' : 'No') . '</td>
+                <td>' . htmlspecialchars($report->extension_date ? date('F j, Y', strtotime($report->extension_date)) : '') . '</td>
+                <td>' . htmlspecialchars($report->extension_justification ?? '') . '</td>
+            </tr>';
+        }
+        
+        $html .= '</tbody></table>';
+        
+        // Note section
+        $html .= '<div class="note">Note: A Plan of Action and other pertinent documents need to be attached to this document to support the request for extension.</div>';
+        
+        // Signature section
+        $html .= '<div class="signature-section">';
+        $html .= '<div><strong>Prepared by:</strong></div>
+            <div style="margin-top: 30px;">______________________________</div>
+            <div>Personnel Name and Position</div>';
         
         $html .= '<div style="margin-top: 50px;"><strong>Reviewed by:</strong></div>
             <div style="margin-top: 30px;">______________________________</div>
