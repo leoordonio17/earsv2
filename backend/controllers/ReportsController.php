@@ -542,7 +542,7 @@ class ReportsController extends Controller
                 $sheet->setCellValue('B' . $row, $report->milestone_name ?? '');
                 $sheet->setCellValue('C' . $row, $report->report_date ? date('F j, Y', strtotime($report->report_date)) : '');
                 $sheet->setCellValue('D' . $row, ucfirst($report->status ?? ''));
-                $sheet->setCellValue('E' . $row, '');
+                $sheet->setCellValue('E' . $row, $report->remarks ?? '');
                 $sheet->setCellValue('F' . $row, $report->has_extension ? 'Yes' : 'No');
                 $sheet->setCellValue('G' . $row, $report->extension_date ? date('F j, Y', strtotime($report->extension_date)) : '');
                 $sheet->setCellValue('H' . $row, $report->extension_justification ?? '');
@@ -1015,7 +1015,7 @@ class ReportsController extends Controller
                     <td>' . htmlspecialchars($report->milestone_name ?? '') . '</td>
                     <td>' . htmlspecialchars($report->report_date ? date('F j, Y', strtotime($report->report_date)) : '') . '</td>
                     <td>' . htmlspecialchars(ucfirst($report->status ?? '')) . '</td>
-                    <td></td>
+                    <td>' . htmlspecialchars($report->remarks ?? '') . '</td>
                     <td>' . htmlspecialchars($report->has_extension ? 'Yes' : 'No') . '</td>
                     <td>' . htmlspecialchars($report->extension_date ? date('F j, Y', strtotime($report->extension_date)) : '') . '</td>
                     <td>' . htmlspecialchars($report->extension_justification ?? '') . '</td>
@@ -1136,7 +1136,7 @@ class ReportsController extends Controller
                 $sheet->setCellValue('C' . $row, $report->milestone_name ?? '');
                 $sheet->setCellValue('D' . $row, $report->report_date ? date('F j, Y', strtotime($report->report_date)) : '');
                 $sheet->setCellValue('E' . $row, ucfirst($report->status ?? ''));
-                $sheet->setCellValue('F' . $row, '');
+                $sheet->setCellValue('F' . $row, $report->remarks ?? '');
                 $sheet->setCellValue('G' . $row, $report->has_extension ? 'Yes' : 'No');
                 $sheet->setCellValue('H' . $row, $report->extension_date ? date('F j, Y', strtotime($report->extension_date)) : '');
                 $sheet->setCellValue('I' . $row, $report->extension_justification ?? '');
@@ -1263,7 +1263,7 @@ class ReportsController extends Controller
                     <td>' . htmlspecialchars($report->milestone_name ?? '') . '</td>
                     <td>' . htmlspecialchars($report->report_date ? date('F j, Y', strtotime($report->report_date)) : '') . '</td>
                     <td>' . htmlspecialchars(ucfirst($report->status ?? '')) . '</td>
-                    <td></td>
+                    <td>' . htmlspecialchars($report->remarks ?? '') . '</td>
                     <td>' . htmlspecialchars($report->has_extension ? 'Yes' : 'No') . '</td>
                     <td>' . htmlspecialchars($report->extension_date ? date('F j, Y', strtotime($report->extension_date)) : '') . '</td>
                     <td>' . htmlspecialchars($report->extension_justification ?? '') . '</td>
