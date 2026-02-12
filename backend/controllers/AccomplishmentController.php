@@ -50,9 +50,10 @@ class AccomplishmentController extends Controller
     {
         $userId = Yii::$app->user->id;
 
-        // Get workplans that belong to the user and have accomplishments
+        // Get workplans that belong to the user and have accomplishments (exclude templates)
         $query = Workplan::find()
             ->where(['user_id' => $userId])
+            ->andWhere(['or', ['is_template' => 0], ['is_template' => null]])
             ->with(['workplanGroup', 'accomplishments']);
 
         // Apply workplan group filter if provided
@@ -81,9 +82,10 @@ class AccomplishmentController extends Controller
             ],
         ]);
 
-        // Get all workplan groups for filter dropdown
+        // Get all workplan groups for filter dropdown (exclude template groups)
         $workplanGroups = \common\models\WorkplanGroup::find()
             ->where(['user_id' => $userId])
+            ->andWhere(['or', ['is_template' => 0], ['is_template' => null]])
             ->orderBy(['title' => SORT_ASC])
             ->all();
 

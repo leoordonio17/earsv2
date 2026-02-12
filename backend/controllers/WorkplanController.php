@@ -200,6 +200,7 @@ class WorkplanController extends Controller
                     $model->attributes = $workplanData;
                     $model->user_id = $userId;
                     $model->workplan_group_id = $group->id;
+                    $model->is_template = 0; // Regular workplan, not a template
 
                     // Populate project_name from project_id if not set
                     if ($model->project_id && !$model->project_name) {
@@ -352,6 +353,7 @@ class WorkplanController extends Controller
         $model = new Workplan();
         $model->user_id = Yii::$app->user->id;
         $model->workplan_group_id = $groupId;
+        $model->is_template = 0; // Regular workplan, not a template
 
         if ($model->load(Yii::$app->request->post())) {
             if ($model->save()) {
@@ -445,6 +447,8 @@ class WorkplanController extends Controller
                     $templateWorkplan->attributes = $workplan->attributes;
                     $templateWorkplan->id = null;
                     $templateWorkplan->workplan_group_id = $templateGroup->id;
+                    $templateWorkplan->is_template = 1; // Mark as template
+                    $templateWorkplan->template_name = null; // Templates don't need individual names
                     
                     if (!$templateWorkplan->save()) {
                         throw new \Exception('Failed to save template workplan.');
@@ -513,6 +517,8 @@ class WorkplanController extends Controller
                     $newWorkplan->id = null;
                     $newWorkplan->workplan_group_id = $newGroup->id;
                     $newWorkplan->user_id = $userId;
+                    $newWorkplan->is_template = 0; // Not a template, it's a regular workplan
+                    $newWorkplan->template_name = null; // Clear template name
                     // Use the group's dates
                     $newWorkplan->start_date = $newGroup->start_date;
                     $newWorkplan->end_date = $newGroup->end_date;

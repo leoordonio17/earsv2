@@ -133,7 +133,8 @@ class Accomplishment extends \yii\db\ActiveRecord
     public static function getUserWorkplans($userId)
     {
         $workplans = Workplan::find()
-            ->where(['user_id' => $userId, 'is_template' => false])
+            ->where(['user_id' => $userId])
+            ->andWhere(['or', ['is_template' => 0], ['is_template' => null]])
             ->orderBy(['start_date' => SORT_DESC])
             ->all();
         

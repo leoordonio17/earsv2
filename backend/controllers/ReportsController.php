@@ -121,7 +121,7 @@ class ReportsController extends Controller
     /**
      * Generate filename for Workplan or Accomplishment report
      * @param string $type 'WP' for Workplan or 'AP' for Accomplishment
-     * @param User $personnel The personnel user
+     * @param User|null $personnel The personnel user (can be null)
      * @param string|null $startDate Start date (can be null)
      * @param string|null $endDate End date (can be null)
      * @param string $extension File extension ('xlsx' or 'pdf')
@@ -136,6 +136,11 @@ class ReportsController extends Controller
             $date = date('Y-m', strtotime($endDate));
         } else {
             $date = date('Y-m');
+        }
+        
+        // Fallback if personnel is null
+        if ($personnel === null) {
+            return $date . '-' . $type . '_Report_v1.' . $extension;
         }
         
         // Get personnel initials
@@ -262,11 +267,17 @@ class ReportsController extends Controller
         
         switch ($type) {
             case 'workplan':
+                if (empty($userId)) {
+                    throw new \yii\web\BadRequestHttpException('User ID is required.');
+                }
                 $personnel = User::findOne($userId);
                 $this->generateWorkplanExcel($sheet, $userId, $startDate, $endDate);
                 $filename = $this->generateReportFilename('WP', $personnel, $startDate, $endDate, 'xlsx');
                 break;
             case 'accomplishment':
+                if (empty($userId)) {
+                    throw new \yii\web\BadRequestHttpException('User ID is required.');
+                }
                 $personnel = User::findOne($userId);
                 $this->generateAccomplishmentExcel($sheet, $userId, $startDate, $endDate);
                 $filename = $this->generateReportFilename('AP', $personnel, $startDate, $endDate, 'xlsx');
@@ -940,11 +951,17 @@ class ReportsController extends Controller
         // Generate content based on type
         switch ($type) {
             case 'workplan':
+                if (empty($userId)) {
+                    throw new \yii\web\BadRequestHttpException('User ID is required.');
+                }
                 $personnel = User::findOne($userId);
                 $html = $this->generateWorkplanPdf($userId, $startDate, $endDate);
                 $filename = $this->generateReportFilename('WP', $personnel, $startDate, $endDate, 'pdf');
                 break;
             case 'accomplishment':
+                if (empty($userId)) {
+                    throw new \yii\web\BadRequestHttpException('User ID is required.');
+                }
                 $personnel = User::findOne($userId);
                 $html = $this->generateAccomplishmentPdf($userId, $startDate, $endDate);
                 $filename = $this->generateReportFilename('AP', $personnel, $startDate, $endDate, 'pdf');
