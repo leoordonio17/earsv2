@@ -95,6 +95,68 @@ class ReportsController extends Controller
     }
     
     /**
+     * Extract initials from full name
+     * @param string $fullName
+     * @return string Initials in uppercase (e.g., "Juan Dela Cruz" -> "JDC")
+     */
+    private function getInitials($fullName)
+    {
+        if (empty($fullName)) {
+            return '';
+        }
+        
+        // Split name by spaces and get first letter of each part
+        $parts = preg_split('/\s+/', trim($fullName));
+        $initials = '';
+        
+        foreach ($parts as $part) {
+            if (!empty($part)) {
+                $initials .= strtoupper(substr($part, 0, 1));
+            }
+        }
+        
+        return $initials;
+    }
+    
+    /**
+     * Generate filename for Workplan or Accomplishment report
+     * @param string $type 'WP' for Workplan or 'AP' for Accomplishment
+     * @param User $personnel The personnel user
+     * @param string|null $startDate Start date (can be null)
+     * @param string|null $endDate End date (can be null)
+     * @param string $extension File extension ('xlsx' or 'pdf')
+     * @return string Generated filename
+     */
+    private function generateReportFilename($type, $personnel, $startDate, $endDate, $extension)
+    {
+        // Determine year-month: use start date if available, otherwise current date
+        if (!empty($startDate)) {
+            $date = date('Y-m', strtotime($startDate));
+        } elseif (!empty($endDate)) {
+            $date = date('Y-m', strtotime($endDate));
+        } else {
+            $date = date('Y-m');
+        }
+        
+        // Get personnel initials
+        $personnelInitials = $this->getInitials($personnel->full_name);
+        
+        // Get reviewer initials (all reviewers if multiple exist)
+        $reviewerInitials = '';
+        $reviewers = $personnel->reviewers;
+        if (!empty($reviewers)) {
+            foreach ($reviewers as $reviewer) {
+                $reviewerInitials .= '_' . $this->getInitials($reviewer->full_name);
+            }
+        }
+        
+        // Build filename: yyyy-mm-WP_ABC_XYZ_v1.xlsx (or with multiple reviewers: yyyy-mm-WP_ABC_XYZ_DEF_GHI_v1.xlsx)
+        $filename = $date . '-' . $type . '_' . $personnelInitials . $reviewerInitials . '_v1.' . $extension;
+        
+        return $filename;
+    }
+    
+    /**
      * {@inheritdoc}
      */
     public function behaviors()
@@ -200,12 +262,14 @@ class ReportsController extends Controller
         
         switch ($type) {
             case 'workplan':
+                $personnel = User::findOne($userId);
                 $this->generateWorkplanExcel($sheet, $userId, $startDate, $endDate);
-                $filename = 'Workplan_Report_' . date('Y-m-d') . '.xlsx';
+                $filename = $this->generateReportFilename('WP', $personnel, $startDate, $endDate, 'xlsx');
                 break;
             case 'accomplishment':
+                $personnel = User::findOne($userId);
                 $this->generateAccomplishmentExcel($sheet, $userId, $startDate, $endDate);
-                $filename = 'Accomplishment_Report_' . date('Y-m-d') . '.xlsx';
+                $filename = $this->generateReportFilename('AP', $personnel, $startDate, $endDate, 'xlsx');
                 break;
             case 'progress-report':
                 $this->generateProgressReportExcel($sheet, $userId, $startDate, $endDate);
@@ -876,12 +940,14 @@ class ReportsController extends Controller
         // Generate content based on type
         switch ($type) {
             case 'workplan':
+                $personnel = User::findOne($userId);
                 $html = $this->generateWorkplanPdf($userId, $startDate, $endDate);
-                $filename = 'Workplan_Report_' . date('Y-m-d') . '.pdf';
+                $filename = $this->generateReportFilename('WP', $personnel, $startDate, $endDate, 'pdf');
                 break;
             case 'accomplishment':
+                $personnel = User::findOne($userId);
                 $html = $this->generateAccomplishmentPdf($userId, $startDate, $endDate);
-                $filename = 'Accomplishment_Report_' . date('Y-m-d') . '.pdf';
+                $filename = $this->generateReportFilename('AP', $personnel, $startDate, $endDate, 'pdf');
                 break;
             case 'progress-report':
                 $html = $this->generateProgressReportPdf($userId, $startDate, $endDate);
