@@ -247,40 +247,59 @@ class ProfileController extends Controller
         $user = Yii::$app->user->identity;
         $post = Yii::$app->request->post();
 
-        $reviewerId = $post['reviewer_id'] ?? null;
+        $reviewerIds = $post['reviewer_ids'] ?? [];
         $approverId = $post['approver_id'] ?? null;
 
-        // Auto-populate designations from selected users' positions
-        if ($reviewerId) {
-            $reviewer = \common\models\User::findOne($reviewerId);
-            $user->reviewer_id = $reviewerId;
-            $user->reviewer_designation = $reviewer ? $reviewer->position : null;
-        } else {
-            $user->reviewer_id = null;
-            $user->reviewer_designation = null;
-        }
+        // Handle multiple reviewers
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            // Delete existing reviewer assignments
+            \common\models\UserReviewer::deleteAll(['user_id' => $user->id]);
 
-        if ($approverId) {
-            $approver = \common\models\User::findOne($approverId);
-            $user->approver_id = $approverId;
-            $user->approver_designation = $approver ? $approver->position : null;
-        } else {
-            $user->approver_id = null;
-            $user->approver_designation = null;
-        }
+            // Create new reviewer assignments
+            if (!empty($reviewerIds) && is_array($reviewerIds)) {
+                foreach ($reviewerIds as $reviewerId) {
+                    $reviewer = \common\models\User::findOne($reviewerId);
+                    if ($reviewer) {
+                        $userReviewer = new \common\models\UserReviewer();
+                        $userReviewer->user_id = $user->id;
+                        $userReviewer->reviewer_id = $reviewerId;
+                        $userReviewer->reviewer_designation = $reviewer->position;
+                        
+                        if (!$userReviewer->save()) {
+                            throw new \Exception('Failed to save reviewer assignment');
+                        }
+                    }
+                }
+            }
 
-        if ($user->save(false)) {
+            // Handle approver (still single)
+            if ($approverId) {
+                $approver = \common\models\User::findOne($approverId);
+                $user->approver_id = $approverId;
+                $user->approver_designation = $approver ? $approver->position : null;
+            } else {
+                $user->approver_id = null;
+                $user->approver_designation = null;
+            }
+
+            if ($user->save(false)) {
+                $transaction->commit();
+                return [
+                    'success' => true,
+                    'message' => 'Signature settings updated successfully',
+                ];
+            }
+
+            throw new \Exception('Failed to update user');
+
+        } catch (\Exception $e) {
+            $transaction->rollBack();
             return [
-                'success' => true,
-                'message' => 'Signature settings updated successfully',
+                'success' => false,
+                'message' => 'Failed to update signature settings: ' . $e->getMessage(),
             ];
         }
-
-        return [
-            'success' => false,
-            'message' => 'Failed to update signature settings',
-            'errors' => $user->errors,
-        ];
     }
 
     /**

@@ -167,28 +167,34 @@ $initial = strtoupper(substr($fullName, 0, 1));
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Reviewer</label>
+                            <label>Reviewers (Multiple Selection)</label>
                             <?php
                             echo Select2::widget([
-                                'name' => 'reviewer_id',
-                                'value' => $user->reviewer_id,
+                                'name' => 'reviewer_ids',
+                                'value' => array_values($user->getReviewerIds()),
                                 'data' => $userList,
                                 'options' => [
-                                    'placeholder' => 'Select reviewer...',
-                                    'id' => 'reviewer-id',
+                                    'placeholder' => 'Select reviewers...',
+                                    'id' => 'reviewer-ids',
                                     'class' => 'form-control',
+                                    'multiple' => true,
                                 ],
                                 'pluginOptions' => [
                                     'allowClear' => true,
                                 ],
                                 'pluginEvents' => [
                                     'change' => 'function(e) { 
-                                        var reviewerId = $(this).val();
-                                        var designation = reviewerId && userPositions[reviewerId] ? userPositions[reviewerId] : "";
-                                        $("#reviewer-designation").val(designation);
+                                        var reviewerIds = $(this).val() || [];
+                                        var designations = [];
+                                        reviewerIds.forEach(function(id) {
+                                            if (userPositions[id]) {
+                                                designations.push(userPositions[id]);
+                                            }
+                                        });
+                                        $("#reviewer-designations-display").val(designations.join(", "));
                                     }',
                                     'select2:clear' => 'function(e) { 
-                                        $("#reviewer-designation").val("");
+                                        $("#reviewer-designations-display").val("");
                                     }',
                                 ],
                             ]);
@@ -196,10 +202,10 @@ $initial = strtoupper(substr($fullName, 0, 1));
                         </div>
                         
                         <div class="form-group">
-                            <label>Reviewer Designation</label>
-                            <input type="text" id="reviewer-designation" class="form-control" 
-                                   value="<?= Html::encode($user->reviewer_designation ?? '') ?>" 
-                                   placeholder="Auto-populated from reviewer's position"
+                            <label>Reviewer Designations</label>
+                            <input type="text" id="reviewer-designations-display" class="form-control" 
+                                   value="<?= Html::encode(implode(', ', array_map(function($ur) { return $ur->reviewer_designation; }, $user->userReviewers))) ?>" 
+                                   placeholder="Auto-populated from reviewers' positions"
                                    readonly>
                         </div>
                     </div>
@@ -879,14 +885,17 @@ $(document).ready(function() {
 });
 
 function saveSignatureSettings() {
-    const reviewerId = document.getElementById('reviewer-id').value;
-    const reviewerDesignation = document.getElementById('reviewer-designation').value;
+    const reviewerIds = $('#reviewer-ids').val() || [];
     const approverId = document.getElementById('approver-id').value;
     const approverDesignation = document.getElementById('approver-designation').value;
     
     const formData = new FormData();
-    formData.append('reviewer_id', reviewerId);
-    formData.append('reviewer_designation', reviewerDesignation);
+    
+    // Append each reviewer ID as an array element
+    reviewerIds.forEach(function(id) {
+        formData.append('reviewer_ids[]', id);
+    });
+    
     formData.append('approver_id', approverId);
     formData.append('approver_designation', approverDesignation);
     
