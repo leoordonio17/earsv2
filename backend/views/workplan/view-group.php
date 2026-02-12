@@ -204,6 +204,84 @@ $this->title = $group->title;
         font-size: 64px;
         margin-bottom: 20px;
     }
+
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+        font-size: 22px;
+        font-weight: 600;
+        color: #2D1F13;
+        margin-bottom: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #2D1F13;
+        margin-bottom: 8px;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #E8D4BC;
+        border-radius: 8px;
+        font-size: 15px;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: #967259;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    .btn-modal {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .btn-modal-primary {
+        background: linear-gradient(135deg, #967259 0%, #B8926A 100%);
+        color: white;
+    }
+
+    .btn-modal-secondary {
+        background: #f0f0f0;
+        color: #666;
+    }
 </style>
 
 <div class="container">
@@ -213,6 +291,11 @@ $this->title = $group->title;
                 📋 <?= Html::encode($group->title) ?>
             </div>
             <div style="display: flex; gap: 10px;">
+                <?= Html::a('💾 Save as Template', '#', [
+                    'class' => 'btn-back',
+                    'style' => 'background: rgba(156, 39, 176, 0.15); border-color: #9c27b0; color: #9c27b0;',
+                    'onclick' => 'openTemplateModal(); return false;'
+                ]) ?>
                 <?= Html::a('✏️ Edit Group', ['update-group', 'id' => $group->id], ['class' => 'btn-back', 'style' => 'background: rgba(25, 118, 210, 0.15); border-color: #1976d2;']) ?>
                 <?= Html::a('🗑️ Delete Group', ['delete-group', 'id' => $group->id], [
                     'class' => 'btn-back',
@@ -346,3 +429,48 @@ $this->title = $group->title;
         <?php endif; ?>
     </div>
 </div>
+
+<!-- Save as Template Modal -->
+<div id="templateModal" class="modal-overlay" onclick="if(event.target === this) closeTemplateModal();">
+    <div class="modal-content">
+        <div class="modal-header">💾 Save as Template</div>
+        <form id="templateForm" method="post" action="<?= \yii\helpers\Url::to(['workplan/save-as-template', 'id' => $group->id]) ?>">
+            <input type="hidden" name="<?= Yii::$app->request->csrfParam ?>" value="<?= Yii::$app->request->csrfToken ?>">
+            <div class="form-group">
+                <label for="template_name">Template Name <span style="color: red;">*</span></label>
+                <input type="text" 
+                       id="template_name" 
+                       name="template_name" 
+                       placeholder="e.g., Monthly Routine Tasks" 
+                       required 
+                       autofocus>
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    Give this template a descriptive name so you can easily find it later.
+                </small>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-modal btn-modal-secondary" onclick="closeTemplateModal()">Cancel</button>
+                <button type="submit" class="btn-modal btn-modal-primary">💾 Save Template</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openTemplateModal() {
+    document.getElementById('templateModal').style.display = 'flex';
+    document.getElementById('template_name').focus();
+}
+
+function closeTemplateModal() {
+    document.getElementById('templateModal').style.display = 'none';
+    document.getElementById('template_name').value = '';
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeTemplateModal();
+    }
+});
+</script>

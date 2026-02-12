@@ -5,8 +5,10 @@ use yii\helpers\Html;
 /* @var $this yii\web\View */
 /* @var $dataProvider yii\data\ActiveDataProvider */
 /* @var $searchTerm string */
+/* @var $currentView string */
 
 $this->title = 'Workplan Management';
+$isTemplateView = ($currentView === 'templates');
 ?>
 <style>
     .workplan-container {
@@ -188,6 +190,51 @@ $this->title = 'Workplan Management';
         border-color: #967259;
     }
 
+    .view-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 25px;
+        border-bottom: 2px solid #E8D4BC;
+        padding-bottom: 5px;
+    }
+
+    .view-tab {
+        padding: 10px 24px;
+        background: white;
+        border: 2px solid #E8D4BC;
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+        color: #666;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        position: relative;
+        bottom: -2px;
+    }
+
+    .view-tab:hover {
+        background: #f8f5f1;
+        text-decoration: none;
+        color: #2D1F13;
+    }
+
+    .view-tab.active {
+        background: #967259;
+        border-color: #967259;
+        color: white;
+        font-weight: 600;
+    }
+
+    .template-badge {
+        background: #967259;
+        color: white;
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 10px;
+        margin-left: 8px;
+        font-weight: 600;
+    }
+
     @media (max-width: 768px) {
         .workplan-groups {
             grid-template-columns: 1fr;
@@ -198,12 +245,30 @@ $this->title = 'Workplan Management';
 <div class="workplan-container">
     <div class="workplan-header">
         <h1>📋 <?= Html::encode($this->title) ?></h1>
-        <?= Html::a('➕ Create New Workplan Group', ['create'], ['class' => 'btn-create']) ?>
+        <?php if ($isTemplateView): ?>
+            <?= Html::a('⬅ Back to Workplans', ['index', 'view' => 'groups'], ['class' => 'btn-create']) ?>
+        <?php else: ?>
+            <?= Html::a('➕ Create New Workplan Group', ['create'], ['class' => 'btn-create']) ?>
+        <?php endif; ?>
+    </div>
+
+    <div class="view-tabs">
+        <?= Html::a(
+            '📋 My Workplan Groups',
+            ['index', 'view' => 'groups'],
+            ['class' => 'view-tab' . ($currentView === 'groups' ? ' active' : '')]
+        ) ?>
+        <?= Html::a(
+            '📚 My Templates',
+            ['index', 'view' => 'templates'],
+            ['class' => 'view-tab' . ($isTemplateView ? ' active' : '')]
+        ) ?>
     </div>
 
     <div class="search-box">
         <form method="get" action="<?= \yii\helpers\Url::to(['workplan/index']) ?>">
-            <input type="text" name="search" placeholder="🔍 Search workplan groups..." 
+            <input type="hidden" name="view" value="<?= Html::encode($currentView) ?>">
+            <input type="text" name="search" placeholder="🔍 Search <?= $isTemplateView ? 'templates' : 'workplan groups' ?>..." 
                    value="<?= Html::encode($searchTerm ?? '') ?>">
         </form>
     </div>
@@ -211,9 +276,12 @@ $this->title = 'Workplan Management';
     <?php if ($dataProvider->getTotalCount() > 0): ?>
         <div class="workplan-groups">
             <?php foreach ($dataProvider->models as $group): ?>
-                <div class="group-card" onclick="window.location='<?= \yii\helpers\Url::to(['workplan/view-group', 'id' => $group->id]) ?>'">
+                <div class="group-card" onclick="window.location='<?= $isTemplateView ? \yii\helpers\Url::to(['workplan/create-from-template', 'templateId' => $group->id]) : \yii\helpers\Url::to(['workplan/view-group', 'id' => $group->id]) ?>'">
                     <div class="group-title">
-                        📋 <?= Html::encode($group->title) ?>
+                        <?= $isTemplateView ? '📚' : '📋' ?> <?= Html::encode($isTemplateView && $group->template_name ? $group->template_name : $group->title) ?>
+                        <?php if ($isTemplateView): ?>
+                            <span class="template-badge">TEMPLATE</span>
+                        <?php endif; ?>
                     </div>
                     <div class="group-dates">
                         📅 <?= Yii::$app->formatter->asDate($group->start_date, 'php:M d, Y') ?> 
@@ -228,10 +296,17 @@ $this->title = 'Workplan Management';
                         <div class="workplan-count">
                             <?= count($group->workplans) ?> Workplan<?= count($group->workplans) !== 1 ? 's' : '' ?>
                         </div>
-                        <a href="<?= \yii\helpers\Url::to(['workplan/view-group', 'id' => $group->id]) ?>" 
-                           class="view-btn" onclick="event.stopPropagation();">
-                            View Details →
-                        </a>
+                        <?php if ($isTemplateView): ?>
+                            <a href="<?= \yii\helpers\Url::to(['workplan/create-from-template', 'templateId' => $group->id]) ?>" 
+                               class="view-btn" onclick="event.stopPropagation();">
+                                Use Template →
+                            </a>
+                        <?php else: ?>
+                            <a href="<?= \yii\helpers\Url::to(['workplan/view-group', 'id' => $group->id]) ?>" 
+                               class="view-btn" onclick="event.stopPropagation();">
+                                View Details →
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -240,10 +315,15 @@ $this->title = 'Workplan Management';
         <?= \yii\widgets\LinkPager::widget(['pagination' => $dataProvider->pagination]) ?>
     <?php else: ?>
         <div class="empty-state">
-            <div class="empty-state-icon">📋</div>
-            <h3>No Workplan Groups Yet</h3>
-            <p>Get started by creating your first workplan group. You can organize multiple workplans under one group!</p>
-            <?= Html::a('➕ Create First Workplan Group', ['create'], ['class' => 'btn-create']) ?>
+            <div class="empty-state-icon"><?= $isTemplateView ? '📚' : '📋' ?></div>
+            <h3><?= $isTemplateView ? 'No Templates Yet' : 'No Workplan Groups Yet' ?></h3>
+            <p><?= $isTemplateView 
+                ? 'Save your frequently used workplan groups as templates for quick reuse!' 
+                : 'Get started by creating your first workplan group. You can organize multiple workplans under one group!' ?>
+            </p>
+            <?php if (!$isTemplateView): ?>
+                <?= Html::a('➕ Create First Workplan Group', ['create'], ['class' => 'btn-create']) ?>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 </div>

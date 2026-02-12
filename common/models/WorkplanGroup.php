@@ -14,6 +14,8 @@ use yii\behaviors\TimestampBehavior;
  * @property string $start_date
  * @property string $end_date
  * @property string|null $description
+ * @property int|null $is_template
+ * @property string|null $template_name
  * @property int $created_at
  * @property int $updated_at
  *
@@ -47,12 +49,14 @@ class WorkplanGroup extends \yii\db\ActiveRecord
     {
         return [
             [['user_id', 'title', 'start_date', 'end_date'], 'required'],
-            [['user_id'], 'integer'],
+            [['user_id', 'is_template'], 'integer'],
             [['start_date', 'end_date'], 'safe'],
             [['description'], 'string'],
-            [['title'], 'string', 'max' => 255],
+            [['title', 'template_name'], 'string', 'max' => 255],
             [['end_date'], 'compare', 'compareAttribute' => 'start_date', 'operator' => '>=', 'message' => 'End date must not be earlier than start date.'],
             [['user_id'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['user_id' => 'id']],
+            ['is_template', 'boolean'],
+            ['is_template', 'default', 'value' => 0],
         ];
     }
 
@@ -68,6 +72,8 @@ class WorkplanGroup extends \yii\db\ActiveRecord
             'start_date' => 'Start Date',
             'end_date' => 'End Date',
             'description' => 'Description',
+            'is_template' => 'Save as Template',
+            'template_name' => 'Template Name',
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
         ];

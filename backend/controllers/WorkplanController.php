@@ -49,11 +49,22 @@ class WorkplanController extends Controller
      * Lists all Workplan Groups.
      * @return string
      */
-    public function actionIndex($search = null)
+    public function actionIndex($search = null, $view = 'groups')
     {
-        $query = \common\models\WorkplanGroup::find()
-            ->where(['user_id' => Yii::$app->user->id])
-            ->with(['user', 'workplans']);
+        $userId = Yii::$app->user->id;
+        
+        if ($view === 'templates') {
+            // Show template groups
+            $query = WorkplanGroup::find()
+                ->where(['user_id' => $userId, 'is_template' => 1])
+                ->with(['user', 'workplans']);
+        } else {
+            // Show regular workplan groups
+            $query = WorkplanGroup::find()
+                ->where(['user_id' => $userId])
+                ->andWhere(['or', ['is_template' => 0], ['is_template' => null]])
+                ->with(['user', 'workplans']);
+        }
 
         // Apply search filter if provided
         if ($search) {
@@ -61,6 +72,7 @@ class WorkplanController extends Controller
                 'or',
                 ['like', 'title', $search],
                 ['like', 'description', $search],
+                ['like', 'template_name', $search],
             ]);
         }
 
@@ -79,6 +91,7 @@ class WorkplanController extends Controller
         return $this->render('index', [
             'dataProvider' => $dataProvider,
             'searchTerm' => $search,
+            'currentView' => $view,
         ]);
     }
 
@@ -387,6 +400,143 @@ class WorkplanController extends Controller
 
         Yii::$app->session->setFlash('success', 'Workplan group and all its workplans deleted successfully!');
         return $this->redirect(['index']);
+    }
+
+    /**
+     * Save workplan group as template
+     * @param int $id WorkplanGroup ID
+     * @return \yii\web\Response
+     * @throws NotFoundHttpException
+     */
+    public function actionSaveAsTemplate($id)
+    {
+        $group = WorkplanGroup::findOne(['id' => $id, 'user_id' => Yii::$app->user->id]);
+        
+        if ($group === null) {
+            throw new NotFoundHttpException('The requested workplan group does not exist.');
+        }
+
+        if (Yii::$app->request->isPost) {
+            $templateName = Yii::$app->request->post('template_name');
+            
+            if (empty($templateName)) {
+                Yii::$app->session->setFlash('error', 'Template name is required.');
+                return $this->redirect(['view-group', 'id' => $id]);
+            }
+
+            $transaction = Yii::$app->db->beginTransaction();
+            try {
+                // Create a copy of the group as template
+                $templateGroup = new WorkplanGroup();
+                $templateGroup->attributes = $group->attributes;
+                $templateGroup->id = null; // Reset ID for new record
+                $templateGroup->is_template = 1;
+                $templateGroup->template_name = $templateName;
+                $templateGroup->title = $templateName;
+                
+                if (!$templateGroup->save()) {
+                    throw new \Exception('Failed to save template group.');
+                }
+
+                // Copy all workplans in the group
+                $workplans = Workplan::find()->where(['workplan_group_id' => $id])->all();
+                foreach ($workplans as $workplan) {
+                    $templateWorkplan = new Workplan();
+                    $templateWorkplan->attributes = $workplan->attributes;
+                    $templateWorkplan->id = null;
+                    $templateWorkplan->workplan_group_id = $templateGroup->id;
+                    
+                    if (!$templateWorkplan->save()) {
+                        throw new \Exception('Failed to save template workplan.');
+                    }
+                }
+
+                $transaction->commit();
+                Yii::$app->session->setFlash('success', "Successfully saved '{$templateName}' as a template!");
+                return $this->redirect(['index', 'view' => 'templates']);
+            } catch (\Exception $e) {
+                $transaction->rollBack();
+                Yii::$app->session->setFlash('error', 'Error saving template: ' . $e->getMessage());
+                return $this->redirect(['view-group', 'id' => $id]);
+            }
+        }
+
+        return $this->redirect(['view-group', 'id' => $id]);
+    }
+
+    /**
+     * Create workplan group from template
+     * @param int $templateId Template WorkplanGroup ID
+     * @return string|\yii\web\Response
+     * @throws NotFoundHttpException
+     */
+    public function actionCreateFromTemplate($templateId)
+    {
+        $template = WorkplanGroup::findOne(['id' => $templateId, 'user_id' => Yii::$app->user->id, 'is_template' => 1]);
+        
+        if ($template === null) {
+            throw new NotFoundHttpException('The requested template does not exist.');
+        }
+
+        $userId = Yii::$app->user->id;
+        $newGroup = new WorkplanGroup();
+        
+        if (Yii::$app->request->isPost) {
+            $groupData = Yii::$app->request->post('WorkplanGroup', []);
+            
+            if (empty($groupData['title']) || empty($groupData['start_date']) || empty($groupData['end_date'])) {
+                Yii::$app->session->setFlash('error', 'Please fill in all required fields.');
+                return $this->render('create-from-template', [
+                    'template' => $template,
+                    'newGroup' => $newGroup,
+                ]);
+            }
+
+            $transaction = Yii::$app->db->beginTransaction();
+            try {
+                // Create new group
+                $newGroup->attributes = $groupData;
+                $newGroup->user_id = $userId;
+                $newGroup->is_template = 0;
+                
+                if (!$newGroup->save()) {
+                    throw new \Exception('Failed to create workplan group.');
+                }
+
+                // Copy workplans from template
+                $templateWorkplans = Workplan::find()->where(['workplan_group_id' => $templateId])->all();
+                $savedCount = 0;
+                
+                foreach ($templateWorkplans as $templateWorkplan) {
+                    $newWorkplan = new Workplan();
+                    $newWorkplan->attributes = $templateWorkplan->attributes;
+                    $newWorkplan->id = null;
+                    $newWorkplan->workplan_group_id = $newGroup->id;
+                    $newWorkplan->user_id = $userId;
+                    // Use the group's dates
+                    $newWorkplan->start_date = $newGroup->start_date;
+                    $newWorkplan->end_date = $newGroup->end_date;
+                    
+                    if ($newWorkplan->save()) {
+                        $savedCount++;
+                    } else {
+                        throw new \Exception('Failed to create workplan.');
+                    }
+                }
+
+                $transaction->commit();
+                Yii::$app->session->setFlash('success', "Successfully created workplan group '{$newGroup->title}' with {$savedCount} workplan(s) from template!");
+                return $this->redirect(['view-group', 'id' => $newGroup->id]);
+            } catch (\Exception $e) {
+                $transaction->rollBack();
+                Yii::$app->session->setFlash('error', 'Error creating from template: ' . $e->getMessage());
+            }
+        }
+
+        return $this->render('create-from-template', [
+            'template' => $template,
+            'newGroup' => $newGroup,
+        ]);
     }
 
     /**
