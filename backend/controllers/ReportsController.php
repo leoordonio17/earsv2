@@ -360,8 +360,11 @@ class ReportsController extends Controller
             ]
         ]);
         
-        // Get workplans
+        // Get workplans (exclude templates)
         $query = Workplan::find()->with(['taskType', 'taskCategory']);
+        
+        // Exclude template workplans
+        $query->andWhere(['or', ['is_template' => 0], ['is_template' => null]]);
         
         if ($userId) {
             $query->andWhere(['user_id' => $userId]);
@@ -543,8 +546,11 @@ class ReportsController extends Controller
             ]
         ]);
         
-        // Get all workplans with their accomplishments
+        // Get all workplans with their accomplishments (exclude templates)
         $query = Workplan::find()->with(['taskType', 'taskCategory', 'accomplishments.status']);
+        
+        // Exclude template workplans
+        $query->andWhere(['or', ['is_template' => 0], ['is_template' => null]]);
         
         if ($userId) {
             $query->andWhere(['user_id' => $userId]);
@@ -1036,8 +1042,11 @@ class ReportsController extends Controller
             </thead>
             <tbody>';
         
-        // Get workplans
+        // Get workplans (exclude templates)
         $query = Workplan::find()->with(['taskType', 'taskCategory']);
+        
+        // Exclude template workplans
+        $query->andWhere(['or', ['is_template' => 0], ['is_template' => null]]);
         
         if ($userId) {
             $query->andWhere(['user_id' => $userId]);
@@ -1188,8 +1197,11 @@ class ReportsController extends Controller
             </thead>
             <tbody>';
         
-        // Get all workplans with their accomplishments
+        // Get all workplans with their accomplishments (exclude templates)
         $query = Workplan::find()->with(['taskType', 'taskCategory', 'accomplishments.status']);
+        
+        // Exclude template workplans
+        $query->andWhere(['or', ['is_template' => 0], ['is_template' => null]]);
         
         if ($userId) {
             $query->andWhere(['user_id' => $userId]);
