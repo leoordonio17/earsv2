@@ -141,11 +141,24 @@ class ReportsController extends Controller
             }
         }
         
-        // Get list of projects for admin
+        // Get list of projects
         $projects = [];
         if ($isAdmin) {
+            // Admin can see all projects
             $projectList = \common\models\ProjectAssignment::find()
                 ->select(['project_id', 'project_name'])
+                ->distinct()
+                ->orderBy(['project_name' => SORT_ASC])
+                ->all();
+            
+            foreach ($projectList as $project) {
+                $projects[$project->project_id] = $project->project_name;
+            }
+        } else {
+            // Personnel can only see their assigned projects
+            $projectList = \common\models\ProjectAssignment::find()
+                ->select(['project_id', 'project_name'])
+                ->where(['user_id' => $user->id])
                 ->distinct()
                 ->orderBy(['project_name' => SORT_ASC])
                 ->all();
@@ -207,14 +220,10 @@ class ReportsController extends Controller
                 $filename = 'Progress_Report_All_Projects_' . date('Y-m-d') . '.xlsx';
                 break;
             case 'progress-report-by-project':
-                // Only allow admin to generate per project report
-                if (!$isAdmin) {
-                    throw new \yii\web\ForbiddenHttpException('You are not allowed to generate this report.');
-                }
                 if (empty($projectId)) {
                     throw new \yii\web\BadRequestHttpException('Project ID is required.');
                 }
-                $this->generateProgressReportByProjectExcel($sheet, $projectId, $startDate, $endDate);
+                $this->generateProgressReportByProjectExcel($sheet, $projectId, $startDate, $endDate, $isAdmin);
                 $filename = 'Progress_Report_Project_' . date('Y-m-d') . '.xlsx';
                 break;
             default:
@@ -370,10 +379,20 @@ class ReportsController extends Controller
             $sheet->setCellValue('A' . $row, 'Reviewed by:');
             $sheet->getStyle('A' . $row)->getFont()->setBold(true);
             $row++;
-            if ($user->reviewer) {
-                $sheet->setCellValue('A' . $row, $user->reviewer->full_name);
-                $row++;
-                $sheet->setCellValue('A' . $row, $user->reviewer_designation ?? $user->reviewer->position ?? '');
+            $userReviewers = $user->userReviewers;
+            if (!empty($userReviewers)) {
+                foreach ($userReviewers as $index => $userReviewer) {
+                    if ($index > 0) {
+                        $row++;
+                    }
+                    $reviewer = $userReviewer->reviewer;
+                    $sheet->setCellValue('A' . $row, $reviewer ? $reviewer->full_name : '');
+                    $row++;
+                    $sheet->setCellValue('A' . $row, $userReviewer->reviewer_designation ?? ($reviewer ? $reviewer->position : ''));
+                    if ($index < count($userReviewers) - 1) {
+                        $row++;
+                    }
+                }
             } else {
                 $sheet->setCellValue('A' . $row, '_________________________');
                 $row++;
@@ -573,10 +592,20 @@ class ReportsController extends Controller
             $sheet->setCellValue('A' . $row, 'Reviewed by:');
             $sheet->getStyle('A' . $row)->getFont()->setBold(true);
             $row++;
-            if ($user->reviewer) {
-                $sheet->setCellValue('A' . $row, $user->reviewer->full_name);
-                $row++;
-                $sheet->setCellValue('A' . $row, $user->reviewer_designation ?? $user->reviewer->position ?? '');
+            $userReviewers = $user->userReviewers;
+            if (!empty($userReviewers)) {
+                foreach ($userReviewers as $index => $userReviewer) {
+                    if ($index > 0) {
+                        $row++;
+                    }
+                    $reviewer = $userReviewer->reviewer;
+                    $sheet->setCellValue('A' . $row, $reviewer ? $reviewer->full_name : '');
+                    $row++;
+                    $sheet->setCellValue('A' . $row, $userReviewer->reviewer_designation ?? ($reviewer ? $reviewer->position : ''));
+                    if ($index < count($userReviewers) - 1) {
+                        $row++;
+                    }
+                }
             } else {
                 $sheet->setCellValue('A' . $row, '_________________________');
                 $row++;
@@ -755,25 +784,20 @@ class ReportsController extends Controller
             $sheet->setCellValue('A' . $row, 'Reviewed by:');
             $sheet->getStyle('A' . $row)->getFont()->setBold(true);
             $row++;
-            if ($user->reviewer) {
-                $sheet->setCellValue('A' . $row, $user->reviewer->full_name);
-                $row++;
-                $sheet->setCellValue('A' . $row, $user->reviewer_designation ?? $user->reviewer->position ?? '');
-            } else {
-                $sheet->setCellValue('A' . $row, '_________________________');
-                $row++;
-                $sheet->setCellValue('A' . $row, 'Name and Designation');
-            }
-            
-            // Approved by
-            $row += 2;
-            $sheet->setCellValue('A' . $row, 'Approved by:');
-            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
-            $row++;
-            if ($user->approver) {
-                $sheet->setCellValue('A' . $row, $user->approver->full_name);
-                $row++;
-                $sheet->setCellValue('A' . $row, $user->approver_designation ?? $user->approver->position ?? '');
+            $userReviewers = $user->userReviewers;
+            if (!empty($userReviewers)) {
+                foreach ($userReviewers as $index => $userReviewer) {
+                    if ($index > 0) {
+                        $row++;
+                    }
+                    $reviewer = $userReviewer->reviewer;
+                    $sheet->setCellValue('A' . $row, $reviewer ? $reviewer->full_name : '');
+                    $row++;
+                    $sheet->setCellValue('A' . $row, $userReviewer->reviewer_designation ?? ($reviewer ? $reviewer->position : ''));
+                    if ($index < count($userReviewers) - 1) {
+                        $row++;
+                    }
+                }
             } else {
                 $sheet->setCellValue('A' . $row, '_________________________');
                 $row++;
@@ -820,20 +844,28 @@ class ReportsController extends Controller
         $pdf->SetAuthor('EARS System');
         $pdf->SetTitle(ucfirst($type) . ' Report');
         
-        // Set header data
-        $pdf->SetHeaderData('', 0, ucfirst($type) . ' Report', 'Electronic Accomplishment Reporting System');
-        
-        // Set fonts
-        $pdf->setHeaderFont(['helvetica', '', 10]);
-        $pdf->setFooterFont(['helvetica', '', 8]);
-        
-        // Set margins
-        $pdf->SetMargins(15, 27, 15);
-        $pdf->SetHeaderMargin(5);
-        $pdf->SetFooterMargin(10);
-        
-        // Set auto page breaks
-        $pdf->SetAutoPageBreak(true, 25);
+        // Special handling for progress-report-by-project to remove default header/footer
+        if ($type === 'progress-report-by-project') {
+            $pdf->setPrintHeader(false);
+            $pdf->setPrintFooter(false);
+            $pdf->SetMargins(15, 15, 15);
+            $pdf->SetAutoPageBreak(true, 15);
+        } else {
+            // Set header data for other reports
+            $pdf->SetHeaderData('', 0, ucfirst($type) . ' Report', 'Electronic Accomplishment Reporting System');
+            
+            // Set fonts
+            $pdf->setHeaderFont(['helvetica', '', 10]);
+            $pdf->setFooterFont(['helvetica', '', 8]);
+            
+            // Set margins
+            $pdf->SetMargins(15, 27, 15);
+            $pdf->SetHeaderMargin(5);
+            $pdf->SetFooterMargin(10);
+            
+            // Set auto page breaks
+            $pdf->SetAutoPageBreak(true, 25);
+        }
         
         // Add page
         $pdf->AddPage();
@@ -864,14 +896,10 @@ class ReportsController extends Controller
                 $filename = 'Progress_Report_All_Projects_' . date('Y-m-d') . '.pdf';
                 break;
             case 'progress-report-by-project':
-                // Only allow admin to generate per project report
-                if (!$isAdmin) {
-                    throw new \yii\web\ForbiddenHttpException('You are not allowed to generate this report.');
-                }
                 if (empty($projectId)) {
                     throw new \yii\web\BadRequestHttpException('Project ID is required.');
                 }
-                $html = $this->generateProgressReportByProjectPdf($projectId, $startDate, $endDate);
+                $html = $this->generateProgressReportByProjectPdf($projectId, $startDate, $endDate, $isAdmin);
                 $filename = 'Progress_Report_Project_' . date('Y-m-d') . '.pdf';
                 break;
             default:
@@ -1003,10 +1031,17 @@ class ReportsController extends Controller
             $html .= '<div style="width: 33%; text-align: left;">
                 <div style="font-weight: bold; margin-bottom: 5px;">Reviewed by:</div>';
             
-            if ($user->reviewer) {
-                $html .= '<div>' . htmlspecialchars($user->reviewer->full_name) . '</div>
-                        <div>' . htmlspecialchars($user->reviewer_designation ?? $user->reviewer->position ?? '') . '</div>
-                    </div>';
+            $userReviewers = $user->userReviewers;
+            if (!empty($userReviewers)) {
+                foreach ($userReviewers as $index => $userReviewer) {
+                    $reviewer = $userReviewer->reviewer;
+                    if ($index > 0) {
+                        $html .= '<div style="margin-top: 10px;"></div>';
+                    }
+                    $html .= '<div>' . htmlspecialchars($reviewer ? $reviewer->full_name : '') . '</div>
+                            <div>' . htmlspecialchars($userReviewer->reviewer_designation ?? ($reviewer ? $reviewer->position : '')) . '</div>';
+                }
+                $html .= '</div>';
             } else {
                 $html .= '<div>_________________________</div><div>Name and Designation</div></div>';
             }
@@ -1172,10 +1207,17 @@ class ReportsController extends Controller
             $html .= '<div style="width: 33%; text-align: left;">
                 <div style="font-weight: bold; margin-bottom: 5px;">Reviewed by:</div>';
             
-            if ($user->reviewer) {
-                $html .= '<div>' . htmlspecialchars($user->reviewer->full_name) . '</div>
-                        <div>' . htmlspecialchars($user->reviewer_designation ?? $user->reviewer->position ?? '') . '</div>
-                    </div>';
+            $userReviewers = $user->userReviewers;
+            if (!empty($userReviewers)) {
+                foreach ($userReviewers as $index => $userReviewer) {
+                    $reviewer = $userReviewer->reviewer;
+                    if ($index > 0) {
+                        $html .= '<div style="margin-top: 10px;"></div>';
+                    }
+                    $html .= '<div>' . htmlspecialchars($reviewer ? $reviewer->full_name : '') . '</div>
+                            <div>' . htmlspecialchars($userReviewer->reviewer_designation ?? ($reviewer ? $reviewer->position : '')) . '</div>';
+                }
+                $html .= '</div>';
             } else {
                 $html .= '<div>_________________________</div><div>Name and Designation</div></div>';
             }
@@ -1320,21 +1362,17 @@ class ReportsController extends Controller
             $html .= '<div style="width: 33%; text-align: left;">
                 <div style="font-weight: bold; margin-bottom: 5px;">Reviewed by:</div>';
             
-            if ($user->reviewer) {
-                $html .= '<div>' . htmlspecialchars($user->reviewer->full_name) . '</div>
-                    <div>' . htmlspecialchars($user->reviewer_designation ?? $user->reviewer->position ?? '') . '</div></div>';
-            } else {
-                $html .= '<div>______________________________</div>
-                    <div>Name and Designation</div></div>';
-            }
-            
-            // Approved by
-            $html .= '<div style="width: 33%; text-align: left;">
-                <div style="font-weight: bold; margin-bottom: 5px;">Approved by:</div>';
-            
-            if ($user->approver) {
-                $html .= '<div>' . htmlspecialchars($user->approver->full_name) . '</div>
-                    <div>' . htmlspecialchars($user->approver_designation ?? $user->approver->position ?? '') . '</div></div>';
+            $userReviewers = $user->userReviewers;
+            if (!empty($userReviewers)) {
+                foreach ($userReviewers as $index => $userReviewer) {
+                    $reviewer = $userReviewer->reviewer;
+                    if ($index > 0) {
+                        $html .= '<div style="margin-top: 10px;"></div>';
+                    }
+                    $html .= '<div>' . htmlspecialchars($reviewer ? $reviewer->full_name : '') . '</div>
+                        <div>' . htmlspecialchars($userReviewer->reviewer_designation ?? ($reviewer ? $reviewer->position : '')) . '</div>';
+                }
+                $html .= '</div>';
             } else {
                 $html .= '<div>______________________________</div>
                     <div>Name and Designation</div></div>';
@@ -1345,10 +1383,6 @@ class ReportsController extends Controller
                 <div>Name and Position</div></div>';
             
             $html .= '<div style="flex: 1; text-align: left;"><div style="font-weight: bold; margin-bottom: 5px;">Reviewed by:</div>
-                <div>______________________________</div>
-                <div>Designation</div></div>';
-            
-            $html .= '<div style="flex: 1; text-align: left;"><div style="font-weight: bold; margin-bottom: 5px;">Approved by:</div>
                 <div>______________________________</div>
                 <div>Designation</div></div>';
         }
@@ -1501,25 +1535,20 @@ class ReportsController extends Controller
         $sheet->setCellValue('A' . $row, 'Reviewed by:');
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $row++;
-        if ($currentUser && $currentUser->reviewer) {
-            $sheet->setCellValue('A' . $row, $currentUser->reviewer->full_name);
-            $row++;
-            $sheet->setCellValue('A' . $row, $currentUser->reviewer_designation ?? $currentUser->reviewer->position ?? '');
-        } else {
-            $sheet->setCellValue('A' . $row, '_________________________');
-            $row++;
-            $sheet->setCellValue('A' . $row, 'Name and Designation');
-        }
-        
-        // Approved by
-        $row += 2;
-        $sheet->setCellValue('A' . $row, 'Approved by:');
-        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
-        $row++;
-        if ($currentUser && $currentUser->approver) {
-            $sheet->setCellValue('A' . $row, $currentUser->approver->full_name);
-            $row++;
-            $sheet->setCellValue('A' . $row, $currentUser->approver_designation ?? $currentUser->approver->position ?? '');
+        $userReviewers = $currentUser ? $currentUser->userReviewers : [];
+        if (!empty($userReviewers)) {
+            foreach ($userReviewers as $index => $userReviewer) {
+                if ($index > 0) {
+                    $row++;
+                }
+                $reviewer = $userReviewer->reviewer;
+                $sheet->setCellValue('A' . $row, $reviewer ? $reviewer->full_name : '');
+                $row++;
+                $sheet->setCellValue('A' . $row, $userReviewer->reviewer_designation ?? ($reviewer ? $reviewer->position : ''));
+                if ($index < count($userReviewers) - 1) {
+                    $row++;
+                }
+            }
         } else {
             $sheet->setCellValue('A' . $row, '_________________________');
             $row++;
@@ -1654,21 +1683,17 @@ class ReportsController extends Controller
             $html .= '<div style="width: 33%; text-align: left;">
                 <div style="font-weight: bold; margin-bottom: 5px;">Reviewed by:</div>';
             
-            if ($currentUser->reviewer) {
-                $html .= '<div>' . htmlspecialchars($currentUser->reviewer->full_name) . '</div>
-                    <div>' . htmlspecialchars($currentUser->reviewer_designation ?? $currentUser->reviewer->position ?? '') . '</div></div>';
-            } else {
-                $html .= '<div>______________________________</div>
-                    <div>Name and Designation</div></div>';
-            }
-            
-            // Approved by
-            $html .= '<div style="width: 33%; text-align: left;">
-                <div style="font-weight: bold; margin-bottom: 5px;">Approved by:</div>';
-            
-            if ($currentUser->approver) {
-                $html .= '<div>' . htmlspecialchars($currentUser->approver->full_name) . '</div>
-                    <div>' . htmlspecialchars($currentUser->approver_designation ?? $currentUser->approver->position ?? '') . '</div></div>';
+            $userReviewers = $currentUser->userReviewers;
+            if (!empty($userReviewers)) {
+                foreach ($userReviewers as $index => $userReviewer) {
+                    $reviewer = $userReviewer->reviewer;
+                    if ($index > 0) {
+                        $html .= '<div style="margin-top: 10px;"></div>';
+                    }
+                    $html .= '<div>' . htmlspecialchars($reviewer ? $reviewer->full_name : '') . '</div>
+                        <div>' . htmlspecialchars($userReviewer->reviewer_designation ?? ($reviewer ? $reviewer->position : '')) . '</div>';
+                }
+                $html .= '</div>';
             } else {
                 $html .= '<div>______________________________</div>
                     <div>Name and Designation</div></div>';
@@ -1678,10 +1703,6 @@ class ReportsController extends Controller
                 Administrator Name and Position</div>';
             
             $html .= '<div style="text-align: center;"><strong>Reviewed by:</strong><br>
-                ______________________________<br>
-                Designation</div>';
-            
-            $html .= '<div style="text-align: center;"><strong>Approved by:</strong><br>
                 ______________________________<br>
                 Designation</div>';
         }
@@ -1694,34 +1715,69 @@ class ReportsController extends Controller
     /**
      * Generate Progress Report per Project Excel
      */
-    private function generateProgressReportByProjectExcel($sheet, $projectId, $startDate, $endDate)
+    private function generateProgressReportByProjectExcel($sheet, $projectId, $startDate, $endDate, $isAdmin = true)
     {
-        // Get project info
-        $projectInfo = \common\models\ProjectAssignment::find()
+        // Get project info from first report
+        $firstReport = ProgressReport::find()
             ->where(['project_id' => $projectId])
             ->one();
         
-        $projectName = $projectInfo ? $projectInfo->project_name : 'Unknown Project';
+        $projectName = 'Unknown Project';
+        $projectCode = ''; // Blank by default
+        
+        if ($firstReport) {
+            $projectName = $firstReport->project_name;
+        }
+        
+        // Try to fetch project_code from PMIS database
+        try {
+            $project = Yii::$app->dbPmis->createCommand(
+                'SELECT project_code FROM projects WHERE id = :id',
+                [':id' => $projectId]
+            )->queryOne();
+            
+            if ($project && !empty($project['project_code'])) {
+                $projectCode = $project['project_code'];
+            }
+        } catch (\Exception $e) {
+            // If PMIS query fails, try from project_data JSON
+            if ($firstReport && $firstReport->project_data) {
+                $projectData = json_decode($firstReport->project_data, true);
+                $projectCode = $projectData['project_code'] ?? '';
+            }
+        }
+        
+        // Determine column range based on role
+        $lastCol = $isAdmin ? 'I' : 'H';
+        
+        // Add reference code in its own row at top right
+        $sheet->setCellValue($lastCol . '1', 'RES-QF-02 Rev.02/01-31-2023');
+        $sheet->getStyle($lastCol . '1')->getFont()->setItalic(true)->setSize(10);
+        $sheet->getStyle($lastCol . '1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
         
         // Set header
-        $sheet->setCellValue('A1', 'PROJECT PROGRESS REPORT FORM');
-        $sheet->mergeCells('A1:I1');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
-        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        
-        $sheet->setCellValue('A2', 'PIDS Research Group');
-        $sheet->mergeCells('A2:I2');
-        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
+        $sheet->setCellValue('A2', 'PROJECT PROGRESS REPORT FORM');
+        $sheet->mergeCells('A2:' . $lastCol . '2');
+        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(16);
         $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         
-        $sheet->setCellValue('A4', 'Project Title: ' . $projectName);
-        $sheet->getStyle('A4')->getFont()->setBold(true);
-        $sheet->mergeCells('A4:I4');
+        $sheet->setCellValue('A3', 'PIDS Research Group');
+        $sheet->mergeCells('A3:' . $lastCol . '3');
+        $sheet->getStyle('A3')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         
-        $sheet->setCellValue('A5', 'Period Covered: ' . ($startDate ?? 'All') . ' to ' . ($endDate ?? 'All'));
-        $sheet->mergeCells('A5:I5');
+        $sheet->setCellValue('A5', 'Project Title: ' . $projectName);
+        $sheet->getStyle('A5')->getFont()->setBold(true);
+        $sheet->mergeCells('A5:' . $lastCol . '5');
         
-        $row = 7;
+        $sheet->setCellValue('A6', 'Project ID: ' . $projectCode);
+        $sheet->getStyle('A6')->getFont()->setBold(true);
+        $sheet->mergeCells('A6:' . $lastCol . '6');
+        
+        $sheet->setCellValue('A7', 'Period Covered: ' . ($startDate ?? 'All') . ' to ' . ($endDate ?? 'All'));
+        $sheet->mergeCells('A7:' . $lastCol . '7');
+        
+        $row = 9;
         
         // Get progress reports for this project
         $query = ProgressReport::find()
@@ -1738,16 +1794,21 @@ class ReportsController extends Controller
         
         $reports = $query->orderBy(['user_id' => SORT_ASC, 'report_date' => SORT_ASC])->all();
         
-        // Column headers
-        $headers = ['Personnel', 'Month', 'Milestone', 'Approved Date', 'Status', 'Remarks (if Delayed)', 'Requesting for Extension?', 'If yes, Proposed Date Extension', 'If yes, Justification for Extension'];
-        $columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+        // Column headers - exclude Personnel column for non-admin
+        if ($isAdmin) {
+            $headers = ['Personnel', 'Month', 'Milestone', 'Approved Date', 'Status', 'Remarks (if Delayed)', 'Requesting for Extension?', 'If yes, Proposed Date Extension', 'If yes, Justification for Extension'];
+            $columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+        } else {
+            $headers = ['Month', 'Milestone', 'Approved Date', 'Status', 'Remarks (if Delayed)', 'Requesting for Extension?', 'If yes, Proposed Date Extension', 'If yes, Justification for Extension'];
+            $columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        }
         
         foreach ($headers as $index => $header) {
             $sheet->setCellValue($columns[$index] . $row, $header);
         }
         
         // Style headers
-        $sheet->getStyle('A' . $row . ':I' . $row)->applyFromArray([
+        $sheet->getStyle('A' . $row . ':' . $lastCol . $row)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
@@ -1765,18 +1826,29 @@ class ReportsController extends Controller
         
         // Data rows
         foreach ($reports as $report) {
-            $sheet->setCellValue('A' . $row, $report->user ? $report->user->full_name : 'N/A');
-            $sheet->setCellValue('B' . $row, date('F Y', strtotime($report->report_date)));
-            $sheet->setCellValue('C' . $row, $report->milestone_name ?? '');
-            $sheet->setCellValue('D' . $row, $report->report_date ? date('F j, Y', strtotime($report->report_date)) : '');
-            $sheet->setCellValue('E' . $row, ucfirst($report->status ?? ''));
-            $sheet->setCellValue('F' . $row, $report->remarks ?? '');
-            $sheet->setCellValue('G' . $row, $report->has_extension ? 'Yes' : 'No');
-            $sheet->setCellValue('H' . $row, $report->extension_date ? date('F j, Y', strtotime($report->extension_date)) : '');
-            $sheet->setCellValue('I' . $row, $report->extension_justification ?? '');
+            if ($isAdmin) {
+                $sheet->setCellValue('A' . $row, $report->user ? $report->user->full_name : 'N/A');
+                $sheet->setCellValue('B' . $row, date('F Y', strtotime($report->report_date)));
+                $sheet->setCellValue('C' . $row, $report->milestone_name ?? '');
+                $sheet->setCellValue('D' . $row, $report->report_date ? date('F j, Y', strtotime($report->report_date)) : '');
+                $sheet->setCellValue('E' . $row, ucfirst($report->status ?? ''));
+                $sheet->setCellValue('F' . $row, $report->remarks ?? '');
+                $sheet->setCellValue('G' . $row, $report->has_extension ? 'Yes' : 'No');
+                $sheet->setCellValue('H' . $row, $report->extension_date ? date('F j, Y', strtotime($report->extension_date)) : '');
+                $sheet->setCellValue('I' . $row, $report->extension_justification ?? '');
+            } else {
+                $sheet->setCellValue('A' . $row, date('F Y', strtotime($report->report_date)));
+                $sheet->setCellValue('B' . $row, $report->milestone_name ?? '');
+                $sheet->setCellValue('C' . $row, $report->report_date ? date('F j, Y', strtotime($report->report_date)) : '');
+                $sheet->setCellValue('D' . $row, ucfirst($report->status ?? ''));
+                $sheet->setCellValue('E' . $row, $report->remarks ?? '');
+                $sheet->setCellValue('F' . $row, $report->has_extension ? 'Yes' : 'No');
+                $sheet->setCellValue('G' . $row, $report->extension_date ? date('F j, Y', strtotime($report->extension_date)) : '');
+                $sheet->setCellValue('H' . $row, $report->extension_justification ?? '');
+            }
             
             // Apply borders
-            $sheet->getStyle('A' . $row . ':I' . $row)->applyFromArray([
+            $sheet->getStyle('A' . $row . ':' . $lastCol . $row)->applyFromArray([
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => Border::BORDER_THIN,
@@ -1789,7 +1861,7 @@ class ReportsController extends Controller
         
         $row += 2;
         $sheet->setCellValue('A' . $row, 'Note: A Plan of Action and other pertinent documents need to be attached to this document to support the request for extension.');
-        $sheet->mergeCells('A' . $row . ':I' . $row);
+        $sheet->mergeCells('A' . $row . ':' . $lastCol . $row);
         
         // Signature section
         $row += 2;
@@ -1822,25 +1894,20 @@ class ReportsController extends Controller
         $sheet->setCellValue('A' . $row, 'Reviewed by:');
         $sheet->getStyle('A' . $row)->getFont()->setBold(true);
         $row++;
-        if ($currentUser && $currentUser->reviewer) {
-            $sheet->setCellValue('A' . $row, $currentUser->reviewer->full_name);
-            $row++;
-            $sheet->setCellValue('A' . $row, $currentUser->reviewer_designation ?? $currentUser->reviewer->position ?? '');
-        } else {
-            $sheet->setCellValue('A' . $row, '_________________________');
-            $row++;
-            $sheet->setCellValue('A' . $row, 'Name and Designation');
-        }
-        
-        // Approved by
-        $row += 2;
-        $sheet->setCellValue('A' . $row, 'Approved by:');
-        $sheet->getStyle('A' . $row)->getFont()->setBold(true);
-        $row++;
-        if ($currentUser && $currentUser->approver) {
-            $sheet->setCellValue('A' . $row, $currentUser->approver->full_name);
-            $row++;
-            $sheet->setCellValue('A' . $row, $currentUser->approver_designation ?? $currentUser->approver->position ?? '');
+        $userReviewers = $currentUser ? $currentUser->userReviewers : [];
+        if (!empty($userReviewers)) {
+            foreach ($userReviewers as $index => $userReviewer) {
+                if ($index > 0) {
+                    $row++;
+                }
+                $reviewer = $userReviewer->reviewer;
+                $sheet->setCellValue('A' . $row, $reviewer ? $reviewer->full_name : '');
+                $row++;
+                $sheet->setCellValue('A' . $row, $userReviewer->reviewer_designation ?? ($reviewer ? $reviewer->position : ''));
+                if ($index < count($userReviewers) - 1) {
+                    $row++;
+                }
+            }
         } else {
             $sheet->setCellValue('A' . $row, '_________________________');
             $row++;
@@ -1848,28 +1915,62 @@ class ReportsController extends Controller
         }
         
         // Set column widths
-        $sheet->getColumnDimension('A')->setWidth(20);
-        $sheet->getColumnDimension('B')->setWidth(12);
-        $sheet->getColumnDimension('C')->setWidth(25);
-        $sheet->getColumnDimension('D')->setWidth(12);
-        $sheet->getColumnDimension('E')->setWidth(12);
-        $sheet->getColumnDimension('F')->setWidth(25);
-        $sheet->getColumnDimension('G')->setWidth(12);
-        $sheet->getColumnDimension('H')->setWidth(15);
-        $sheet->getColumnDimension('I')->setWidth(25);
+        if ($isAdmin) {
+            $sheet->getColumnDimension('A')->setWidth(20);
+            $sheet->getColumnDimension('B')->setWidth(12);
+            $sheet->getColumnDimension('C')->setWidth(25);
+            $sheet->getColumnDimension('D')->setWidth(12);
+            $sheet->getColumnDimension('E')->setWidth(12);
+            $sheet->getColumnDimension('F')->setWidth(25);
+            $sheet->getColumnDimension('G')->setWidth(12);
+            $sheet->getColumnDimension('H')->setWidth(15);
+            $sheet->getColumnDimension('I')->setWidth(25);
+        } else {
+            $sheet->getColumnDimension('A')->setWidth(12);
+            $sheet->getColumnDimension('B')->setWidth(25);
+            $sheet->getColumnDimension('C')->setWidth(12);
+            $sheet->getColumnDimension('D')->setWidth(12);
+            $sheet->getColumnDimension('E')->setWidth(25);
+            $sheet->getColumnDimension('F')->setWidth(12);
+            $sheet->getColumnDimension('G')->setWidth(15);
+            $sheet->getColumnDimension('H')->setWidth(25);
+        }
     }
 
     /**
      * Generate Progress Report per Project PDF
      */
-    private function generateProgressReportByProjectPdf($projectId, $startDate, $endDate)
+    private function generateProgressReportByProjectPdf($projectId, $startDate, $endDate, $isAdmin = true)
     {
-        // Get project info
-        $projectInfo = \common\models\ProjectAssignment::find()
+        // Get project info from first report
+        $firstReport = ProgressReport::find()
             ->where(['project_id' => $projectId])
             ->one();
         
-        $projectName = $projectInfo ? $projectInfo->project_name : 'Unknown Project';
+        $projectName = 'Unknown Project';
+        $projectCode = ''; // Blank by default
+        
+        if ($firstReport) {
+            $projectName = $firstReport->project_name;
+        }
+        
+        // Try to fetch project_code from PMIS database
+        try {
+            $project = Yii::$app->dbPmis->createCommand(
+                'SELECT project_code FROM projects WHERE id = :id',
+                [':id' => $projectId]
+            )->queryOne();
+            
+            if ($project && !empty($project['project_code'])) {
+                $projectCode = $project['project_code'];
+            }
+        } catch (\Exception $e) {
+            // If PMIS query fails, try from project_data JSON
+            if ($firstReport && $firstReport->project_data) {
+                $projectData = json_decode($firstReport->project_data, true);
+                $projectCode = $projectData['project_code'] ?? '';
+            }
+        }
         
         $html = '<style>
             table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
@@ -1878,12 +1979,15 @@ class ReportsController extends Controller
             .project-title { font-weight: bold; margin: 15px 0; font-size: 12px; }
             .note { margin-top: 20px; font-size: 10px; font-style: italic; }
             .signature-section { margin-top: 30px; font-size: 10px; }
+            .ref-code { text-align: right; font-style: italic; font-size: 10px; margin-bottom: 10px; }
         </style>';
         
-        $html .= '<h2 style="text-align: center;">PROJECT PROGRESS REPORT FORM</h2>';
+        $html .= '<div class="ref-code">RES-QF-02 Rev.02/01-31-2023</div>';
+        $html .= '<h2 style="text-align: center; margin-top: 0;">PROJECT PROGRESS REPORT FORM</h2>';
         $html .= '<h3 style="text-align: center;">PIDS Research Group</h3>';
         
         $html .= '<div class="project-title">Project Title: ' . htmlspecialchars($projectName) . '</div>';
+        $html .= '<div style="font-weight: bold; margin-bottom: 15px; font-size: 12px;"><strong>Project ID:</strong> ' . htmlspecialchars($projectCode) . '</div>';
         $html .= '<div style="margin-bottom: 15px;"><strong>Period Covered:</strong> ' . ($startDate ?? 'All') . ' to ' . ($endDate ?? 'All') . '</div>';
         
         // Get progress reports for this project
@@ -1901,11 +2005,16 @@ class ReportsController extends Controller
         
         $reports = $query->orderBy(['user_id' => SORT_ASC, 'report_date' => SORT_ASC])->all();
         
+        // Build table headers - exclude Personnel column for non-admin
         $html .= '<table>
             <thead>
-                <tr>
-                    <th>Personnel</th>
-                    <th>Month</th>
+                <tr>';
+        
+        if ($isAdmin) {
+            $html .= '<th>Personnel</th>';
+        }
+        
+        $html .= '<th>Month</th>
                     <th>Milestone</th>
                     <th>Approved Date</th>
                     <th>Status</th>
@@ -1917,10 +2026,15 @@ class ReportsController extends Controller
             </thead>
             <tbody>';
         
+        // Build data rows - exclude Personnel column for non-admin
         foreach ($reports as $report) {
-            $html .= '<tr>
-                <td>' . htmlspecialchars($report->user ? $report->user->full_name : 'N/A') . '</td>
-                <td>' . htmlspecialchars(date('F Y', strtotime($report->report_date))) . '</td>
+            $html .= '<tr>';
+            
+            if ($isAdmin) {
+                $html .= '<td>' . htmlspecialchars($report->user ? $report->user->full_name : 'N/A') . '</td>';
+            }
+            
+            $html .= '<td>' . htmlspecialchars(date('F Y', strtotime($report->report_date))) . '</td>
                 <td>' . htmlspecialchars($report->milestone_name ?? '') . '</td>
                 <td>' . htmlspecialchars($report->report_date ? date('F j, Y', strtotime($report->report_date)) : '') . '</td>
                 <td>' . htmlspecialchars(ucfirst($report->status ?? '')) . '</td>
@@ -1963,21 +2077,17 @@ class ReportsController extends Controller
             $html .= '<div style="width: 33%; text-align: left;">
                 <div style="font-weight: bold; margin-bottom: 5px;">Reviewed by:</div>';
             
-            if ($currentUser->reviewer) {
-                $html .= '<div>' . htmlspecialchars($currentUser->reviewer->full_name) . '</div>
-                    <div>' . htmlspecialchars($currentUser->reviewer_designation ?? $currentUser->reviewer->position ?? '') . '</div></div>';
-            } else {
-                $html .= '<div>______________________________</div>
-                    <div>Name and Designation</div></div>';
-            }
-            
-            // Approved by
-            $html .= '<div style="width: 33%; text-align: left;">
-                <div style="font-weight: bold; margin-bottom: 5px;">Approved by:</div>';
-            
-            if ($currentUser->approver) {
-                $html .= '<div>' . htmlspecialchars($currentUser->approver->full_name) . '</div>
-                    <div>' . htmlspecialchars($currentUser->approver_designation ?? $currentUser->approver->position ?? '') . '</div></div>';
+            $userReviewers = $currentUser->userReviewers;
+            if (!empty($userReviewers)) {
+                foreach ($userReviewers as $index => $userReviewer) {
+                    $reviewer = $userReviewer->reviewer;
+                    if ($index > 0) {
+                        $html .= '<div style="margin-top: 10px;"></div>';
+                    }
+                    $html .= '<div>' . htmlspecialchars($reviewer ? $reviewer->full_name : '') . '</div>
+                        <div>' . htmlspecialchars($userReviewer->reviewer_designation ?? ($reviewer ? $reviewer->position : '')) . '</div>';
+                }
+                $html .= '</div>';
             } else {
                 $html .= '<div>______________________________</div>
                     <div>Name and Designation</div></div>';
@@ -1987,10 +2097,6 @@ class ReportsController extends Controller
                 Personnel Name and Position</div>';
             
             $html .= '<div style="text-align: center;"><strong>Reviewed by:</strong><br>
-                ______________________________<br>
-                Designation</div>';
-            
-            $html .= '<div style="text-align: center;"><strong>Approved by:</strong><br>
                 ______________________________<br>
                 Designation</div>';
         }

@@ -190,9 +190,13 @@ JqueryAsset::register($this);
                         'progress-report' => 'Progress Report',
                     ];
                     
+                    // Add project-specific reports
                     if ($isAdmin) {
                         $reportTypes['progress-report-by-project'] = 'Progress Report per Project (Admin)';
                         $reportTypes['progress-report-combined'] = 'Progress Report - All Projects Combined (Admin)';
+                    } else {
+                        // Personnel can also generate progress report per project
+                        $reportTypes['progress-report-by-project'] = 'Progress Report per Project';
                     }
                     ?>
                     <?= Select2::widget([
@@ -224,6 +228,7 @@ JqueryAsset::register($this);
                         ],
                     ]); ?>
                 </div>
+                <?php endif; ?>
                 
                 <div class="form-group" id="project-select-group" style="display:none;">
                     <label>Project <span class="required">*</span></label>
@@ -239,7 +244,6 @@ JqueryAsset::register($this);
                         ],
                     ]); ?>
                 </div>
-                <?php endif; ?>
             </div>
             
             <div class="form-row">
@@ -355,6 +359,15 @@ jQuery(document).ready(function($) {
             'name': 'type',
             'value': type
         }));
+        
+        var projectId = $('#project-id').val();
+        if (projectId) {
+            form.append($('<input>', {
+                'type': 'hidden',
+                'name': 'project_id',
+                'value': projectId
+            }));
+        }
 JS;
 
 if ($isAdmin) {
@@ -366,15 +379,6 @@ if ($isAdmin) {
                 'type': 'hidden',
                 'name': 'user_id',
                 'value': userId
-            }));
-        }
-        
-        var projectId = $('#project-id').val();
-        if (projectId) {
-            form.append($('<input>', {
-                'type': 'hidden',
-                'name': 'project_id',
-                'value': projectId
             }));
         }
 JS;
@@ -438,6 +442,15 @@ $js .= <<<JS
             'name': 'type',
             'value': type
         }));
+        
+        var projectId = $('#project-id').val();
+        if (projectId) {
+            form.append($('<input>', {
+                'type': 'hidden',
+                'name': 'project_id',
+                'value': projectId
+            }));
+        }
 JS;
 
 if ($isAdmin) {
@@ -449,15 +462,6 @@ if ($isAdmin) {
                 'type': 'hidden',
                 'name': 'user_id',
                 'value': userId
-            }));
-        }
-        
-        var projectId = $('#project-id').val();
-        if (projectId) {
-            form.append($('<input>', {
-                'type': 'hidden',
-                'name': 'project_id',
-                'value': projectId
             }));
         }
 JS;
