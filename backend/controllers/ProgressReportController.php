@@ -52,7 +52,7 @@ class ProgressReportController extends Controller
     {
         $query = ProgressReport::find();
 
-        // Check user role - administrators see all, personnel see reports from team members on the same projects
+        // Check user role - administrators see all, personnel see only their assigned projects
         if (Yii::$app->user->identity->role !== \common\models\User::ROLE_ADMINISTRATOR) {
             // Get user's assigned project IDs
             $userProjectIds = ProjectAssignment::find()
@@ -61,18 +61,11 @@ class ProgressReportController extends Controller
                 ->column();
             
             if (!empty($userProjectIds)) {
-                // Get all users assigned to the same projects
-                $teamMemberIds = ProjectAssignment::find()
-                    ->select('user_id')
-                    ->where(['project_id' => $userProjectIds])
-                    ->distinct()
-                    ->column();
-                
-                // Show reports from all team members on the same projects
-                $query->where(['user_id' => $teamMemberIds]);
+                // Show only reports for projects the user is assigned to
+                $query->where(['project_id' => $userProjectIds]);
             } else {
-                // If user has no project assignments, only show their own reports
-                $query->where(['user_id' => Yii::$app->user->id]);
+                // If user has no project assignments, show no reports
+                $query->where(['project_id' => null]);
             }
         }
 
@@ -558,39 +551,27 @@ class ProgressReportController extends Controller
      */
     protected function findModel($id)
     {
-        // Administrators can view all reports
-        if (Yii::$app->user->identity->role === \common\models\User::ROLE_ADMINISTRATOR) {
-            $model = ProgressReport::findOne(['id' => $id]);
-        } else {
-            // Personnel can view reports from team members on the same projects
-            $model = ProgressReport::findOne(['id' => $id]);
-            
-            if ($model !== null) {
-                // Check if the current user is on the same project as the report creator
-                $userProjectIds = ProjectAssignment::find()
-                    ->select('project_id')
-                    ->where(['user_id' => Yii::$app->user->id])
-                    ->column();
-                
-                $reportUserProjectIds = ProjectAssignment::find()
-                    ->select('project_id')
-                    ->where(['user_id' => $model->user_id])
-                    ->column();
-                
-                // Check if there's any overlap in projects
-                $sharedProjects = array_intersect($userProjectIds, $reportUserProjectIds);
-                
-                if (empty($sharedProjects) && $model->user_id !== Yii::$app->user->id) {
-                    // User is not on the same team and not the owner
-                    throw new NotFoundHttpException('The requested page does not exist.');
-                }
-            }
+        $model = ProgressReport::findOne(['id' => $id]);
+
+        if ($model === null) {
+            throw new NotFoundHttpException('The requested page does not exist.');
         }
 
-        if ($model !== null) {
+        // Administrators can view all reports
+        if (Yii::$app->user->identity->role === \common\models\User::ROLE_ADMINISTRATOR) {
             return $model;
         }
 
-        throw new NotFoundHttpException('The requested page does not exist.');
+        // Personnel can only view reports for projects they are assigned to
+        $userProjectIds = ProjectAssignment::find()
+            ->select('project_id')
+            ->where(['user_id' => Yii::$app->user->id])
+            ->column();
+
+        if (!in_array($model->project_id, $userProjectIds)) {
+            throw new NotFoundHttpException('The requested page does not exist.');
+        }
+
+        return $model;
     }
 }
