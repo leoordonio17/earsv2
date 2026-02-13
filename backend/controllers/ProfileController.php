@@ -126,6 +126,11 @@ class ProfileController extends Controller
                 Yii::info('Password hash synced from DTS API', __METHOD__);
             }
 
+            // Auto-update custom_initials if not set or if full_name changed
+            if (empty($user->custom_initials) || $user->isAttributeChanged('full_name')) {
+                $user->custom_initials = \common\models\User::generateInitials($user->full_name);
+            }
+
             if ($user->save()) {
                 return [
                     'success' => true,

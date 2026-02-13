@@ -309,4 +309,87 @@ class UserManagementController extends Controller
             ],
         ];
     }
+
+    /**
+     * Test PIDS API connection (diagnostic tool)
+     * 
+     * @return Response|string
+     */
+    public function actionTestConnection()
+    {
+        // If AJAX request, return JSON diagnostics
+        if (Yii::$app->request->isAjax) {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+
+            $diagnostics = [];
+            $pidsApi = Yii::$app->pidsApi;
+
+            // Test 1: Check configuration
+            $diagnostics['config'] = [
+                'api_base_url' => $pidsApi->apiBaseUrl,
+                'token_configured' => !empty($pidsApi->apiToken),
+                'token_length' => strlen($pidsApi->apiToken ?? ''),
+            ];
+
+            // Test 2: Check cURL availability
+            $diagnostics['curl'] = [
+                'available' => function_exists('curl_init'),
+                'version' => curl_version()['version'] ?? 'unknown',
+                'ssl_version' => curl_version()['ssl_version'] ?? 'unknown',
+            ];
+
+            // Test 3: Test DNS resolution
+            $hostname = parse_url($pidsApi->apiBaseUrl, PHP_URL_HOST);
+            $diagnostics['dns'] = [
+                'hostname' => $hostname,
+                'resolvable' => gethostbyname($hostname) !== $hostname,
+                'ip_address' => gethostbyname($hostname),
+            ];
+
+            // Test 4: Try to fetch personnel data
+            $startTime = microtime(true);
+            try {
+                $personnel = $pidsApi->getAllPersonnel();
+                $endTime = microtime(true);
+                
+                $diagnostics['api_test'] = [
+                    'success' => $personnel !== null,
+                    'count' => $personnel ? count($personnel) : 0,
+                    'duration_seconds' => round($endTime - $startTime, 2),
+                    'sample_data' => $personnel ? array_slice($personnel, 0, 2) : null,
+                ];
+            } catch (\Exception $e) {
+                $diagnostics['api_test'] = [
+                    'success' => false,
+                    'error' => $e->getMessage(),
+                ];
+            }
+
+            // Test 5: Check SSL certificate
+            $ch = curl_init($pidsApi->apiBaseUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CERTINFO, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+            curl_exec($ch);
+            $certInfo = curl_getinfo($ch, CURLINFO_CERTINFO);
+            $sslError = curl_error($ch);
+            curl_close($ch);
+
+            $diagnostics['ssl'] = [
+                'certificate_valid' => empty($sslError),
+                'error' => $sslError ?: null,
+                'cert_info_available' => !empty($certInfo),
+            ];
+
+            return [
+                'success' => true,
+                'diagnostics' => $diagnostics,
+                'timestamp' => date('Y-m-d H:i:s'),
+            ];
+        }
+        
+        // If regular request, render diagnostic page
+        return $this->render('test-connection');
+    }
 }

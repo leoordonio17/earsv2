@@ -34,27 +34,134 @@ class PidsApiComponent extends Component
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // For development, enable in production
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            
+            // SSL/TLS Configuration
+            // Try with SSL verification first (production standard)
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+            
+            // Specify minimum TLS version (TLS 1.2+)
+            if (defined('CURL_SSLVERSION_TLSv1_2')) {
+                curl_setopt($ch, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
+            }
+            
+            // Set CA bundle path if available (helps with SSL verification)
+            $caBundlePaths = [
+                '/etc/ssl/certs/ca-certificates.crt', // Debian/Ubuntu/Gentoo
+                '/etc/pki/tls/certs/ca-bundle.crt',   // Fedora/RHEL/CentOS
+                '/etc/ssl/ca-bundle.pem',              // OpenSUSE
+                '/etc/ssl/cert.pem',                   // OpenBSD
+                '/usr/local/share/certs/ca-root-nss.crt', // FreeBSD
+            ];
+            
+            foreach ($caBundlePaths as $path) {
+                if (file_exists($path)) {
+                    curl_setopt($ch, CURLOPT_CAINFO, $path);
+                    break;
+                }
+            }
+            
+            // Timeout settings
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15); // Connection timeout
+            curl_setopt($ch, CURLOPT_TIMEOUT, 60);         // Total timeout
+            
+            // User agent
+            curl_setopt($ch, CURLOPT_USERAGENT, 'EARS-PIDS-Integration/2.0');
+            
+            // Additional options for debugging
+            curl_setopt($ch, CURLOPT_VERBOSE, YII_DEBUG);
             
             $response = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $error = curl_error($ch);
+            $errno = curl_errno($ch);
+            $info = curl_getinfo($ch);
+            
             curl_close($ch);
             
+            // Log detailed error information
             if ($error) {
-                Yii::error('cURL Error: ' . $error, __METHOD__);
+                Yii::error([
+                    'message' => 'cURL Error',
+                    'error' => $error,
+                    'errno' => $errno,
+                    'url' => $url,
+                    'http_code' => $httpCode,
+                    'total_time' => $info['total_time'] ?? 0,
+                    'connect_time' => $info['connect_time'] ?? 0,
+                ], __METHOD__);
+                
+                // If SSL error, try again without SSL verification as fallback
+                if (in_array($errno, [60, 77])) { // SSL certificate problem or Problem with the SSL CA cert
+                    Yii::warning('Retrying API request without SSL verification (fallback)', __METHOD__);
+                    return $this->httpGetWithoutSSL($url);
+                }
+                
                 return null;
             }
             
             if ($httpCode !== 200) {
-                Yii::error('HTTP Error: ' . $httpCode, __METHOD__);
+                Yii::error([
+                    'message' => 'HTTP Error',
+                    'http_code' => $httpCode,
+                    'url' => $url,
+                    'response_preview' => substr($response, 0, 500),
+                ], __METHOD__);
+                return null;
+            }
+            
+            $decoded = json_decode($response, true);
+            
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Yii::error([
+                    'message' => 'JSON Decode Error',
+                    'error' => json_last_error_msg(),
+                    'response_preview' => substr($response, 0, 500),
+                ], __METHOD__);
+                return null;
+            }
+            
+            return $decoded;
+            
+        } catch (\Exception $e) {
+            Yii::error('Exception in httpGet: ' . $e->getMessage(), __METHOD__);
+            return null;
+        }
+    }
+    
+    /**
+     * Fallback HTTP GET without SSL verification
+     * Only used when SSL verification fails
+     * 
+     * @param string $url The URL to request
+     * @return array|null Response data or null on failure
+     */
+    private function httpGetWithoutSSL($url)
+    {
+        try {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'EARS-PIDS-Integration/2.0');
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            
+            curl_close($ch);
+            
+            if ($error || $httpCode !== 200) {
                 return null;
             }
             
             return json_decode($response, true);
+            
         } catch (\Exception $e) {
-            Yii::error('Exception in httpGet: ' . $e->getMessage(), __METHOD__);
             return null;
         }
     }

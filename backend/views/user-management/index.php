@@ -17,7 +17,10 @@ $this->registerCssFile('@web/css/user-management.css', ['depends' => [\yii\boots
         <div class="alert alert-warning">
             <strong>API Connection Issue:</strong> <?= Html::encode($apiError) ?>
             <br>
-            <small>Check the API configuration in backend/config/main.php and test at: <a href="<?= Url::to(['/debug/test-api']) ?>" target="_blank">/debug/test-api</a></small>
+            <small>
+                Troubleshoot connection issues: 
+                <?= Html::a('Run Diagnostics Tool', ['user-management/test-connection'], ['target' => '_blank', 'style' => 'font-weight: 600; color: #967259;']) ?>
+            </small>
         </div>
     <?php endif; ?>
 

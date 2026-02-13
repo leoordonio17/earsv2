@@ -115,6 +115,30 @@ class User extends ActiveRecord implements IdentityInterface
     }
 
     /**
+     * Generate initials from full name
+     * @param string $fullName
+     * @return string Initials in uppercase (e.g., "Juan Dela Cruz" -> "JDC")
+     */
+    public static function generateInitials($fullName)
+    {
+        if (empty($fullName)) {
+            return '';
+        }
+        
+        // Split name by spaces and get first letter of each part
+        $parts = preg_split('/\s+/', trim($fullName));
+        $initials = '';
+        
+        foreach ($parts as $part) {
+            if (!empty($part)) {
+                $initials .= strtoupper(substr($part, 0, 1));
+            }
+        }
+        
+        return $initials;
+    }
+
+    /**
      * {@inheritdoc}
      */
     public static function findIdentity($id)
@@ -331,6 +355,11 @@ class User extends ActiveRecord implements IdentityInterface
         }
         $user->status = self::STATUS_ACTIVE;
         $user->role = $role;
+        
+        // Auto-populate custom_initials if not already set or if full_name changed
+        if (empty($user->custom_initials) || $user->isAttributeChanged('full_name')) {
+            $user->custom_initials = self::generateInitials($user->full_name);
+        }
         
         if (!$user->save()) {
             Yii::error('Failed to save User: ' . print_r($user->errors, true), __METHOD__);
