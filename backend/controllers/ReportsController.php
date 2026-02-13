@@ -117,6 +117,25 @@ class ReportsController extends Controller
         
         return $initials;
     }
+
+    /**
+     * Get user initials (custom or auto-generated)
+     * @param User|null $user The user object
+     * @return string Initials in uppercase
+     */
+    private function getUserInitials($user)
+    {
+        if ($user === null) {
+            return '';
+        }
+
+        // Use custom_initials if available, otherwise generate from full_name
+        if (!empty($user->custom_initials)) {
+            return strtoupper($user->custom_initials);
+        }
+
+        return $this->getInitials($user->full_name);
+    }
     
     /**
      * Generate filename for Workplan or Accomplishment report
@@ -143,15 +162,15 @@ class ReportsController extends Controller
             return $date . '-' . $type . '_Report_v1.' . $extension;
         }
         
-        // Get personnel initials
-        $personnelInitials = $this->getInitials($personnel->full_name);
+        // Get personnel initials (custom or auto-generated)
+        $personnelInitials = $this->getUserInitials($personnel);
         
         // Get reviewer initials (all reviewers if multiple exist)
         $reviewerInitials = '';
         $reviewers = $personnel->reviewers;
         if (!empty($reviewers)) {
             foreach ($reviewers as $reviewer) {
-                $reviewerInitials .= '_' . $this->getInitials($reviewer->full_name);
+                $reviewerInitials .= '_' . $this->getUserInitials($reviewer);
             }
         }
         

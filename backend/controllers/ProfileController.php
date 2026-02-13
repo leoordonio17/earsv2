@@ -334,4 +334,54 @@ class ProfileController extends Controller
             'message' => 'No signature to delete or failed to delete',
         ];
     }
+
+    /**
+     * Update custom initials
+     * 
+     * @return \yii\web\Response
+     */
+    public function actionUpdateInitials()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        $user = Yii::$app->user->identity;
+        $customInitials = Yii::$app->request->post('custom_initials');
+
+        if (empty($customInitials)) {
+            return [
+                'success' => false,
+                'message' => 'Custom initials cannot be empty',
+            ];
+        }
+
+        // Validate format (uppercase letters and numbers only)
+        if (!preg_match('/^[A-Z0-9]+$/', $customInitials)) {
+            return [
+                'success' => false,
+                'message' => 'Custom initials must contain only uppercase letters and numbers',
+            ];
+        }
+
+        if (strlen($customInitials) > 10) {
+            return [
+                'success' => false,
+                'message' => 'Custom initials must not exceed 10 characters',
+            ];
+        }
+
+        $user->custom_initials = strtoupper($customInitials);
+        
+        if ($user->save(false)) {
+            return [
+                'success' => true,
+                'message' => 'Custom initials updated successfully',
+                'initials' => $user->custom_initials,
+            ];
+        }
+
+        return [
+            'success' => false,
+            'message' => 'Failed to update custom initials',
+        ];
+    }
 }

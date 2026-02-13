@@ -118,6 +118,40 @@ $initial = strtoupper(substr($fullName, 0, 1));
                 </div>
             </div>
 
+            <!-- Custom Initials Section -->
+            <div class="initials-section">
+                <h3 class="section-title">🔤 Custom Initials for Reports</h3>
+                
+                <div class="initials-info">
+                    <p class="info-text">
+                        Your initials are used in report filenames (Workplan and Accomplishment reports). 
+                        Customize your initials if the auto-generated ones don't suit you.
+                    </p>
+                </div>
+
+                <div class="initials-form">
+                    <div class="form-group-inline">
+                        <label for="custom-initials" class="initials-label">Your Initials:</label>
+                        <input type="text" 
+                               id="custom-initials" 
+                               class="initials-input" 
+                               value="<?= Html::encode($user->custom_initials ?? '') ?>" 
+                               placeholder="e.g., JDC"
+                               maxlength="10"
+                               style="text-transform: uppercase;">
+                        <button class="btn-save-initials" onclick="updateInitials()">
+                            💾 Save Initials
+                        </button>
+                    </div>
+                    <p class="initials-help-text">
+                        Use uppercase letters and numbers only (max 10 characters). 
+                        <?php if ($user->full_name): ?>
+                            Auto-generated from "<?= Html::encode($user->full_name) ?>".
+                        <?php endif; ?>
+                    </p>
+                </div>
+            </div>
+
             <!-- Digital Signature Section -->
             <div class="signature-section">
                 <h3 class="section-title">✍️ Digital Signature</h3>
@@ -514,6 +548,96 @@ $initial = strtoupper(substr($fullName, 0, 1));
     font-size: 12px;
 }
 
+/* Custom Initials Section */
+.initials-section {
+    margin: 20px 30px 30px;
+    padding: 25px;
+    background: white;
+    border-radius: 10px;
+    border: 2px solid #E8D4BC;
+}
+
+.initials-info {
+    margin-bottom: 20px;
+}
+
+.info-text {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.initials-form {
+    margin-top: 15px;
+}
+
+.form-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.initials-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: #2D1F13;
+    min-width: 120px;
+}
+
+.initials-input {
+    padding: 10px 15px;
+    border: 2px solid #D4A574;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    width: 150px;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 2px;
+}
+
+.initials-input:focus {
+    outline: none;
+    border-color: #967259;
+    box-shadow: 0 0 0 3px rgba(150, 114, 89, 0.1);
+}
+
+.btn-save-initials {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #967259, #B8926A);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-save-initials:hover:not(:disabled) {
+    background: linear-gradient(135deg, #B8926A, #D4A574);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(150, 114, 89, 0.3);
+}
+
+.btn-save-initials:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.initials-help-text {
+    color: #6c757d;
+    font-size: 13px;
+    margin: 5px 0 0 0;
+    font-style: italic;
+}
+
 .external-icon {
     font-size: 14px;
 }
@@ -870,6 +994,70 @@ function deleteSignature() {
         showMessage('danger', 'An error occurred while deleting signature');
     });
 }
+
+function updateInitials() {
+    const initialsInput = document.getElementById('custom-initials');
+    const customInitials = initialsInput.value.trim().toUpperCase();
+    
+    if (!customInitials) {
+        showMessage('danger', 'Please enter your custom initials');
+        return;
+    }
+    
+    // Validate format
+    if (!/^[A-Z0-9]+$/.test(customInitials)) {
+        showMessage('danger', 'Custom initials must contain only uppercase letters and numbers');
+        return;
+    }
+    
+    if (customInitials.length > 10) {
+        showMessage('danger', 'Custom initials must not exceed 10 characters');
+        return;
+    }
+    
+    const saveBtn = document.querySelector('.btn-save-initials');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '⏳ Saving...';
+    
+    const formData = new FormData();
+    formData.append('custom_initials', customInitials);
+    
+    fetch('<?= \yii\helpers\Url::to(['profile/update-initials']) ?>', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRF-Token': '<?= Yii::$app->request->csrfToken ?>'
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showMessage('success', result.message);
+            initialsInput.value = result.initials;
+        } else {
+            showMessage('danger', result.message);
+        }
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    })
+    .catch(error => {
+        showMessage('danger', 'An error occurred while updating initials');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
+
+// Auto-convert initials to uppercase as user types
+document.addEventListener('DOMContentLoaded', function() {
+    const initialsInput = document.getElementById('custom-initials');
+    if (initialsInput) {
+        initialsInput.addEventListener('input', function(e) {
+            this.value = this.value.toUpperCase();
+        });
+    }
+});
+
 
 // Populate designations on page load
 $(document).ready(function() {

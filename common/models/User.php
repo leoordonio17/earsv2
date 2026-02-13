@@ -15,6 +15,7 @@ use yii\web\IdentityInterface;
  * @property integer $pids_id
  * @property string $username
  * @property string $full_name
+ * @property string $custom_initials
  * @property string $password_hash
  * @property string $password_reset_token
  * @property string $verification_token
@@ -74,6 +75,8 @@ class User extends ActiveRecord implements IdentityInterface
             ['role', 'in', 'range' => [self::ROLE_PERSONNEL, self::ROLE_ADMINISTRATOR]],
             [['pids_id', 'approver_id'], 'integer'],
             [['full_name', 'position', 'department', 'division', 'profile_picture', 'digital_signature', 'approver_designation'], 'string', 'max' => 255],
+            ['custom_initials', 'string', 'max' => 10],
+            ['custom_initials', 'match', 'pattern' => '/^[A-Z0-9]+$/', 'message' => 'Custom initials must contain only uppercase letters and numbers.'],
         ];
     }
 
