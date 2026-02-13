@@ -40,6 +40,7 @@ class WorkplanController extends Controller
                 'class' => VerbFilter::class,
                 'actions' => [
                     'delete' => ['POST'],
+                    'delete-group' => ['POST'],
                 ],
             ],
         ];
@@ -83,7 +84,9 @@ class WorkplanController extends Controller
             ],
             'sort' => [
                 'defaultOrder' => [
-                    'start_date' => SORT_DESC,
+                    // For templates, sort by creation order (most recent first)
+                    // For regular workplans, sort by start date
+                    ($view === 'templates' ? 'id' : 'start_date') => SORT_DESC,
                 ]
             ],
         ]);

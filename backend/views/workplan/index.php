@@ -235,6 +235,32 @@ $isTemplateView = ($currentView === 'templates');
         font-weight: 600;
     }
 
+    .delete-btn {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .delete-btn:hover {
+        background: #c82333;
+        transform: scale(1.05);
+    }
+
+    .template-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
     @media (max-width: 768px) {
         .workplan-groups {
             grid-template-columns: 1fr;
@@ -297,10 +323,18 @@ $isTemplateView = ($currentView === 'templates');
                             <?= count($group->workplans) ?> Workplan<?= count($group->workplans) !== 1 ? 's' : '' ?>
                         </div>
                         <?php if ($isTemplateView): ?>
-                            <a href="<?= \yii\helpers\Url::to(['workplan/create-from-template', 'templateId' => $group->id]) ?>" 
-                               class="view-btn" onclick="event.stopPropagation();">
-                                Use Template →
-                            </a>
+                            <div class="template-actions">
+                                <a href="<?= \yii\helpers\Url::to(['workplan/create-from-template', 'templateId' => $group->id]) ?>" 
+                                   class="view-btn" onclick="event.stopPropagation();">
+                                    Use Template →
+                                </a>
+                                <?= Html::beginForm(['delete-group', 'id' => $group->id], 'post', ['style' => 'display:inline;', 'onclick' => 'event.stopPropagation();']) ?>
+                                    <button type="submit" class="delete-btn" 
+                                            onclick="return confirm('Are you sure you want to delete this template? This action cannot be undone.');">
+                                        🗑️ Delete
+                                    </button>
+                                <?= Html::endForm() ?>
+                            </div>
                         <?php else: ?>
                             <a href="<?= \yii\helpers\Url::to(['workplan/view-group', 'id' => $group->id]) ?>" 
                                class="view-btn" onclick="event.stopPropagation();">

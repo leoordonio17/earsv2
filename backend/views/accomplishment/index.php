@@ -291,7 +291,7 @@ $this->title = 'Accomplishments';
             <button type="submit" class="btn-search">Search</button>
             
             <?php if ($searchTerm || $selectedGroupId): ?>
-                <?= Html::a('✕ Clear', ['index'], ['class' => 'btn-clear']) ?>
+                <?= Html::a('✕ Clear', ['index', 'group_id' => ''], ['class' => 'btn-clear']) ?>
             <?php endif; ?>
         </form>
     </div>

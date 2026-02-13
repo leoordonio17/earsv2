@@ -50,6 +50,19 @@ class AccomplishmentController extends Controller
     {
         $userId = Yii::$app->user->id;
 
+        // Get all workplan groups for filter dropdown (exclude template groups)
+        $workplanGroups = \common\models\WorkplanGroup::find()
+            ->where(['user_id' => $userId])
+            ->andWhere(['or', ['is_template' => 0], ['is_template' => null]])
+            ->orderBy(['id' => SORT_DESC])
+            ->all();
+
+        // If this is the initial page load (no query parameters at all)
+        // default to the most recently created workplan group
+        if (!isset($_GET['group_id']) && !isset($_GET['search']) && !empty($workplanGroups)) {
+            $group_id = $workplanGroups[0]->id;
+        }
+
         // Get workplans that belong to the user and have accomplishments (exclude templates)
         $query = Workplan::find()
             ->where(['user_id' => $userId])
@@ -77,17 +90,10 @@ class AccomplishmentController extends Controller
             ],
             'sort' => [
                 'defaultOrder' => [
-                    'start_date' => SORT_DESC,
+                    'id' => SORT_DESC, // Sort by most recently created
                 ]
             ],
         ]);
-
-        // Get all workplan groups for filter dropdown (exclude template groups)
-        $workplanGroups = \common\models\WorkplanGroup::find()
-            ->where(['user_id' => $userId])
-            ->andWhere(['or', ['is_template' => 0], ['is_template' => null]])
-            ->orderBy(['title' => SORT_ASC])
-            ->all();
 
         return $this->render('index', [
             'dataProvider' => $dataProvider,
