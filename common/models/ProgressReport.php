@@ -75,6 +75,7 @@ class ProgressReport extends \yii\db\ActiveRecord
             [['extension_status'], 'string', 'max' => 20],
             [['status'], 'in', 'range' => [self::STATUS_COMPLETED, self::STATUS_ONGOING, self::STATUS_DELAYED]],
             [['extension_status'], 'in', 'range' => [self::EXTENSION_PENDING, self::EXTENSION_APPROVED, self::EXTENSION_REJECTED]],
+            [['has_extension'], 'default', 'value' => 0],
             [['has_extension'], 'boolean'],
             [['extension_date', 'extension_justification'], 'required', 'when' => function($model) {
                 return $model->has_extension == 1;
