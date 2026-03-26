@@ -162,8 +162,8 @@ class Workplan extends \yii\db\ActiveRecord
             ->orderBy(['project_name' => SORT_ASC])
             ->all();
         
-        // Add "Not Project Related" option at the beginning
-        $projects = ['NOT_PROJECT_RELATED' => '📋 Not Project Related'];
+        // Add "Others" option at the beginning
+        $projects = ['OTHERS' => 'Others'];
         
         foreach ($assignments as $assignment) {
             $projects[$assignment->project_id] = $assignment->project_name;

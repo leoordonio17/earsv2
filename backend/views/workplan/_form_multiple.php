@@ -438,8 +438,8 @@ function attachEventHandlers(rowNum) {
         const selectedValue = $(this).val();
         const selectedText = $(this).find('option:selected').text();
         
-        if (selectedValue === 'NOT_PROJECT_RELATED') {
-            $('.project-name-hidden[data-row="' + rowNum + '"]').val('Not Project Related');
+        if (selectedValue === 'OTHERS') {
+            $('.project-name-hidden[data-row="' + rowNum + '"]').val('Others');
         } else {
             $('.project-name-hidden[data-row="' + rowNum + '"]').val(selectedText);
         }

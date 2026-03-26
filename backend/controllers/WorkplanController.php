@@ -207,8 +207,8 @@ class WorkplanController extends Controller
 
                     // Populate project_name from project_id if not set
                     if ($model->project_id && !$model->project_name) {
-                        if ($model->project_id === 'NOT_PROJECT_RELATED') {
-                            $model->project_name = 'Not Project Related';
+                        if ($model->project_id === 'OTHERS') {
+                            $model->project_name = 'Others';
                         } else {
                             $assignment = ProjectAssignment::findOne(['project_id' => $model->project_id, 'user_id' => $userId]);
                             if ($assignment) {

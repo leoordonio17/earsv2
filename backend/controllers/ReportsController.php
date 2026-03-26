@@ -402,7 +402,7 @@ class ReportsController extends Controller
         // Group workplans by project
         $groupedWorkplans = [];
         foreach ($workplans as $workplan) {
-            $projectName = $workplan->project_name ?: 'Not Project Related';
+            $projectName = $workplan->project_name ?: 'Others';
             if (!isset($groupedWorkplans[$projectName])) {
                 $groupedWorkplans[$projectName] = [];
             }
@@ -413,7 +413,7 @@ class ReportsController extends Controller
         $projectNumber = 1;
         foreach ($groupedWorkplans as $projectName => $projectWorkplans) {
             // Add project header row
-            $projectLabel = ($projectName === 'Not Project Related') ? $projectName : 'Project #' . $projectNumber . ': ' . $projectName;
+            $projectLabel = ($projectName === 'Others') ? $projectName : 'Project #' . $projectNumber . ': ' . $projectName;
             $sheet->setCellValue('A' . $row, $projectLabel);
             $sheet->mergeCells('A' . $row . ':E' . $row);
             $sheet->getStyle('A' . $row)->getFont()->setBold(true);
@@ -450,7 +450,7 @@ class ReportsController extends Controller
                 $row++;
             }
             
-            if ($projectName !== 'Not Project Related') {
+            if ($projectName !== 'Others') {
                 $projectNumber++;
             }
         }
@@ -588,7 +588,7 @@ class ReportsController extends Controller
         // Group workplans by project
         $groupedWorkplans = [];
         foreach ($workplans as $workplan) {
-            $projectName = $workplan->project_name ?: 'Not Project Related';
+            $projectName = $workplan->project_name ?: 'Others';
             if (!isset($groupedWorkplans[$projectName])) {
                 $groupedWorkplans[$projectName] = [];
             }
@@ -599,7 +599,7 @@ class ReportsController extends Controller
         $projectNumber = 1;
         foreach ($groupedWorkplans as $projectName => $projectWorkplans) {
             // Add project header row
-            $projectLabel = ($projectName === 'Not Project Related') ? $projectName : 'Project #' . $projectNumber . ': ' . $projectName;
+            $projectLabel = ($projectName === 'Others') ? $projectName : 'Project #' . $projectNumber . ': ' . $projectName;
             $sheet->setCellValue('A' . $row, $projectLabel);
             $sheet->mergeCells('A' . $row . ':I' . $row);
             $sheet->getStyle('A' . $row)->getFont()->setBold(true);
@@ -666,7 +666,7 @@ class ReportsController extends Controller
                 }
             }
         
-            if ($projectName !== 'Not Project Related') {
+            if ($projectName !== 'Others') {
                 $projectNumber++;
             }
         }
@@ -1084,7 +1084,7 @@ class ReportsController extends Controller
         // Group workplans by project
         $groupedWorkplans = [];
         foreach ($workplans as $workplan) {
-            $projectName = $workplan->project_name ?: 'Not Project Related';
+            $projectName = $workplan->project_name ?: 'Others';
             if (!isset($groupedWorkplans[$projectName])) {
                 $groupedWorkplans[$projectName] = [];
             }
@@ -1094,7 +1094,7 @@ class ReportsController extends Controller
         $projectNumber = 1;
         foreach ($groupedWorkplans as $projectName => $projectWorkplans) {
             // Add project header row
-            $projectLabel = ($projectName === 'Not Project Related') ? $projectName : 'Project #' . $projectNumber . ': ' . $projectName;
+            $projectLabel = ($projectName === 'Others') ? $projectName : 'Project #' . $projectNumber . ': ' . $projectName;
             $html .= '<tr>
                 <td colspan="5" class="project-header">' . htmlspecialchars($projectLabel) . '</td>
             </tr>';
@@ -1110,7 +1110,7 @@ class ReportsController extends Controller
                 </tr>';
             }
             
-            if ($projectName !== 'Not Project Related') {
+            if ($projectName !== 'Others') {
                 $projectNumber++;
             }
         }
@@ -1239,7 +1239,7 @@ class ReportsController extends Controller
         // Group workplans by project
         $groupedWorkplans = [];
         foreach ($workplans as $workplan) {
-            $projectName = $workplan->project_name ?: 'Not Project Related';
+            $projectName = $workplan->project_name ?: 'Others';
             if (!isset($groupedWorkplans[$projectName])) {
                 $groupedWorkplans[$projectName] = [];
             }
@@ -1249,7 +1249,7 @@ class ReportsController extends Controller
         $projectNumber = 1;
         foreach ($groupedWorkplans as $projectName => $projectWorkplans) {
             // Add project header row
-            $projectLabel = ($projectName === 'Not Project Related') ? $projectName : 'Project #' . $projectNumber . ': ' . $projectName;
+            $projectLabel = ($projectName === 'Others') ? $projectName : 'Project #' . $projectNumber . ': ' . $projectName;
             $html .= '<tr>
                 <td colspan="9" class="project-header">' . htmlspecialchars($projectLabel) . '</td>
             </tr>';;
@@ -1289,7 +1289,7 @@ class ReportsController extends Controller
                 }
             }
             
-            if ($projectName !== 'Not Project Related') {
+            if ($projectName !== 'Others') {
                 $projectNumber++;
             }
         }
