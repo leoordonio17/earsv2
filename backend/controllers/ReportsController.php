@@ -139,7 +139,7 @@ class ReportsController extends Controller
     
     /**
      * Generate filename for Workplan or Accomplishment report
-     * @param string $type 'WP' for Workplan or 'AP' for Accomplishment
+     * @param string $type 'WP' for Workplan or 'AR' for Accomplishment
      * @param User|null $personnel The personnel user (can be null)
      * @param string|null $startDate Start date (can be null)
      * @param string|null $endDate End date (can be null)
@@ -299,7 +299,7 @@ class ReportsController extends Controller
                 }
                 $personnel = User::findOne($userId);
                 $this->generateAccomplishmentExcel($sheet, $userId, $startDate, $endDate);
-                $filename = $this->generateReportFilename('AP', $personnel, $startDate, $endDate, 'xlsx');
+                $filename = $this->generateReportFilename('AR', $personnel, $startDate, $endDate, 'xlsx');
                 break;
             case 'progress-report':
                 $this->generateProgressReportExcel($sheet, $userId, $startDate, $endDate);
@@ -989,7 +989,7 @@ class ReportsController extends Controller
                 }
                 $personnel = User::findOne($userId);
                 $html = $this->generateAccomplishmentPdf($userId, $startDate, $endDate);
-                $filename = $this->generateReportFilename('AP', $personnel, $startDate, $endDate, 'pdf');
+                $filename = $this->generateReportFilename('AR', $personnel, $startDate, $endDate, 'pdf');
                 break;
             case 'progress-report':
                 $html = $this->generateProgressReportPdf($userId, $startDate, $endDate);
